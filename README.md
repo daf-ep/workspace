@@ -14,11 +14,11 @@ cd workspace
 dart pub global activate --source path cli
 ```
 
-That installs `dafep` globally. From then on, in any project:
+That installs `dpw` globally. From then on, in any project:
 
 ```
 cd ~/any/project
-dart pub global run cli:dafep init
+dart pub global run cli:dpw init
 ```
 
 Run it again whenever you want the latest rules. Anything you've customized for that project stays exactly as you left it, and the project keeps the same id across every run.
@@ -43,6 +43,6 @@ None of it names a language, a company, or a tool. A `customization/` layer lets
 
 ## Why it's public
 
-Read it, fork it, run it. `dafep` never touches anything outside `.claude/`, so trying it costs nothing and leaves nothing behind.
+Read it, fork it, run it. `dpw` never touches anything outside `.claude/`, so trying it costs nothing and leaves nothing behind.
 
 Licensed under the Mozilla Public License 2.0.

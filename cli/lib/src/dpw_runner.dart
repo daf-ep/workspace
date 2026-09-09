@@ -36,26 +36,19 @@
 
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
-import 'package:test/test.dart';
+import 'package:args/command_runner.dart';
 
-void main() {
-  test('running init creates .claude/rules and .claude/ID for real', () async {
-    final project = Directory.systemTemp.createTempSync('dafep_e2e_');
-    addTearDown(() => project.deleteSync(recursive: true));
+import 'commands/init_command.dart';
 
-    final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
+/// Runs the `dpw` command with [arguments], returning its exit code.
+Future<int> runDpw(List<String> arguments) async {
+  final runner = CommandRunner<int>('dpw', 'Sync the rules corpus into a project and manage its context.')
+    ..addCommand(InitCommand());
 
-    final result = await Process.run(Platform.resolvedExecutable, [
-      'run',
-      binPath,
-      'init',
-    ], workingDirectory: project.path);
-
-    expect(result.exitCode, 0, reason: result.stderr.toString());
-    expect(File(p.join(project.path, '.claude', 'rules', 'rules.md')).existsSync(), isTrue);
-
-    final id = File(p.join(project.path, '.claude', 'ID')).readAsStringSync().trim();
-    expect(id, matches(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')));
-  });
+  try {
+    return await runner.run(arguments) ?? 0;
+  } on UsageException catch (error) {
+    stderr.writeln(error);
+    return 64;
+  }
 }

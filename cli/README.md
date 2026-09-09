@@ -1,4 +1,4 @@
-The `dafep` command-line tool.
+`dpw`, the command-line tool for dafep.
 
 ## Commands
 
@@ -10,7 +10,7 @@ never touches an existing id or an existing file under `customization/`.
 ## Running it from source
 
 ```
-dart run bin/dafep.dart init
+dart run bin/dpw.dart init
 ```
 
 ## Testing it
