@@ -40,9 +40,15 @@ import 'package:path/path.dart' as p;
 
 /// Finds the rules directory that ships next to this tool.
 ///
-/// Walks up from the running script to the package root, the first parent
-/// carrying a `pubspec.yaml`, then looks for a sibling `rules` directory.
+/// A compiled, installed binary carries its own copy right beside it, the
+/// same way the installer unpacked it. Running from source instead, inside
+/// this checkout, has no such copy: this walks up from the running script to
+/// the package root, the first parent carrying a `pubspec.yaml`, then looks
+/// for a sibling `rules` directory there.
 Directory? findRulesSource() {
+  final besideBinary = Directory(p.join(p.dirname(Platform.resolvedExecutable), 'rules'));
+  if (besideBinary.existsSync()) return besideBinary;
+
   final scriptPath = File.fromUri(Platform.script).resolveSymbolicLinksSync();
   var dir = Directory(p.dirname(scriptPath));
   while (!File(p.join(dir.path, 'pubspec.yaml')).existsSync()) {
