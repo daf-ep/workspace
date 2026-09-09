@@ -68,7 +68,7 @@ protected async execute(): Promise<Response> {
 
 ### What the Compiler Reads, and What It Discards
 
-This is the point that decides the rest: **in a `.ts`, typing tags are ignored.** Only documentation tags act, `@deprecated`, `@see`, `@link`. The rest only exists in a checked `.js`.
+This is the point that decides the rest: **in a `.ts`, typing tags are ignored.** Most of what's left only helps the reader and the editor, `@deprecated`, `@see`, `@link`, `@linkcode`. One exception carries real weight even in a checked `.ts`: `@internal` drives actual tooling, the kind that strips a declaration from a published `.d.ts` when asked to. A declaration exported only so another package can call it or infer a type from it, never meant for a caller to use directly, carries `@internal` instead of full documentation, a short note instead of the usual complete treatment: `/** @internal An implementation detail. Do not use. */`. Its members don't need documenting field by field either, since the note already says why they're bare. The rest of what's left only exists in a checked `.js`.
 
 The reason is simple: the language already has the feature, and it's checked.
 
@@ -104,9 +104,31 @@ It's the one the editor shows on hover, often cut off at the first line: what ru
 export function remove(path: string): Promise<void> { ... }
 ```
 
+### The Grammatical Form Announces the Member's Nature
+
+| What you're documenting | Starts with | Example |
+| --- | --- | --- |
+| a function whose side effect is the point | a third-person verb | `Connects to the server and fetches the query results.` |
+| an accessor whose return value is the point | a noun phrase | `The number of retries left before this request gives up.` |
+| a method that does real work to produce its return value | a third-person verb | `Parses a config from the given JSON string.` |
+| a non-boolean field or variable | a noun phrase | `The current day of the week.` |
+| a boolean | `Whether` plus a noun or gerund | `Whether the modal is currently displayed to the user.` |
+| a class, an interface, a type | a noun phrase describing **an instance** | `A user's profile within the application.` |
+
+An accessor and a method look alike here, but the test is what the return value costs to produce. A `get` that just reads a field already computed is a noun phrase. A method named `parse` or `copyWith` does real work each time it runs, so it starts with a verb even though a value is all a caller sees.
+
 ### It Never Repeats a Type, or the Signature
 
-The name, the types, optionality, and the default value are already in autocomplete. The comment only explains the rest: a unit, a range, a precondition, a side effect.
+The name, the types, and optionality are already in autocomplete. The comment only explains the rest: a unit, a range, a precondition, a side effect, and a default value whenever the signature can't fully carry it. An interface property has no syntax for a default at all, so the comment is the only place it can live:
+
+```ts
+export interface CacheOptions {
+  /** Milliseconds before an entry expires. Defaults to 5000. */
+  ttlMs?: number;
+}
+```
+
+A parameter's default is visible right in the signature, but a line still earns its place when the value is worth confirming without opening the function:
 
 ```ts
 // No: the signature already says it.
@@ -119,7 +141,7 @@ The name, the types, optionality, and the default value are already in autocompl
 /**
  * Waits for the socket to answer.
  *
- * @param timeout - Milliseconds before giving up. Must be positive.
+ * @param timeout - Milliseconds before giving up. Defaults to 3000. Must be positive.
  * @returns Whether the socket answered in time.
  */
 ```
@@ -137,6 +159,7 @@ No type braces, and a dash after the parameter name.
 | `@defaultValue` | the default value is decided elsewhere than in the signature |
 | `@remarks` | what overflows the summary and doesn't fit elsewhere |
 | `@see` | a pointer to a declaration or an address |
+| `@linkcode` | same as `{@link}`, but renders the target in code font |
 | `@deprecated` | **the only one that acts**: the editor strikes through usages, the compiler flags them |
 
 `@deprecated` with no text is a missed opportunity: it says not to use it anymore, never what to use instead.
@@ -155,14 +178,53 @@ A short fragment that doesn't stand on its own, because it shows a call in its c
 
 ### Links Are Written with `{@link}`
 
-A name cited in plain text stays dead text.
+A name cited in plain text stays dead text. `{@linkcode}` is the same link rendered in code font, for a symbol name rather than a run of prose.
 
 ```ts
 /**
  * Similar to {@link remove}, but never throws.
  *
  * See {@link https://example.com/spec | the specification} for the corner cases.
+ *
+ * @throws provided {@linkcode messageOrError} when the check fails.
  */
+```
+
+### A Getter and Its Setter Get Documented Only Once
+
+Both are presented as a single field: documenting both loses one of the two texts.
+
+```ts
+class Pool {
+  /**
+   * The pH level of the water in the pool.
+   *
+   * Ranges from 0 to 14, acidic to basic, with 7 neutral.
+   */
+  get phLevel(): number { ... }
+  set phLevel(level: number) { ... }
+}
+```
+
+### The Comment Comes Before the Decorator
+
+Same rule as an annotation in any other language: the documentation comment sits above the decorator, never between it and the declaration. A decorator that's itself exported follows the ordinary rule for an exported function.
+
+```ts
+/** A button that can be flipped on and off. */
+@Component({ selector: 'toggle' })
+export class ToggleComponent {}
+```
+
+### Each Overload Carries Its Own Comment
+
+A function with several overloaded signatures documents every signature in full, never a single comment on the implementation meant to cover all of them.
+
+```ts
+/** Shows the document in the given column. */
+export function showTextDocument(document: TextDocument, column?: ViewColumn): Thenable<TextEditor>;
+/** Shows the document using the given options. */
+export function showTextDocument(document: TextDocument, options?: TextDocumentShowOptions): Thenable<TextEditor>;
 ```
 
 ### Every Field of an Interface or a Type

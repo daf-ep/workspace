@@ -69,10 +69,14 @@ This is the most mechanical rule, and the one most often missed.
 | What you're documenting | Starts with | Example |
 | --- | --- | --- |
 | a function whose side effect is the point | a third-person verb | `/// Connects to the server and fetches the query results.` |
-| a function whose return value is the point | a noun phrase | `/// The [index]th element of this iterable in iteration order.` |
-| a non-boolean variable or accessor | a noun phrase | `/// The current day of the week.` |
+| an accessor whose return value is the point | a noun phrase | `/// The [index]th element of this iterable in iteration order.` |
+| a method that does real work to produce its return value | a third-person verb | `/// Creates a copy of this object but with the given fields replaced.` |
+| a constructor | `Creates a/an ...` | `/// Creates insets from offsets from the left, top, right, and bottom.` |
+| a non-boolean variable | a noun phrase | `/// The current day of the week.` |
 | a boolean | `Whether` plus a noun or gerund | `/// Whether the modal is currently displayed to the user.` |
 | a class, a type, a library | a noun phrase describing **an instance** | `/// A chunk of non-breaking output text terminated by a hard or soft newline.` |
+
+An accessor and a method look alike in this table, but the test is what the return value costs to produce. `checkedCount` above just reads a count that already exists, a noun phrase. A method named `copyWith` builds a new object each time it's called, real work, so it starts with a verb even though a value is all a caller sees.
 
 For a variable, you describe what the value **is**, never the work done to get it:
 
@@ -93,6 +97,33 @@ class RadioButtonWidget extends Widget {
   void tooltip(List<String> lines) { ... }
 }
 ```
+
+A default value is the one exception worth a line even when it's already sitting in the signature: `Defaults to 3.` earns its place next to a named parameter, because a reader scanning the comment shouldn't have to jump to the constructor to learn it. It earns that place even more when the signature can't show it at all, a default resolved elsewhere at runtime:
+
+```dart
+class Icon extends StatelessWidget {
+  /// The size of the icon in logical pixels.
+  ///
+  /// Defaults to the nearest [IconTheme]'s [IconThemeData.size].
+  final double? size;
+}
+```
+
+### A Repeated Idea Isn't Retyped
+
+When a constructor says the same thing as the class it builds, or two declarations need the same paragraph, the text lives once, on a `{@template <name>}...{@endtemplate}` block, and every other spot that needs it carries `{@macro <name>}` instead of retyping the paragraph.
+
+```dart
+/// {@template drag_details.global_position}
+/// The global position at which the pointer contacted the screen.
+/// {@endtemplate}
+class DragUpdateDetails {
+  /// {@macro drag_details.global_position}
+  final Offset globalPosition;
+}
+```
+
+A comment that only macros a template needs nothing else above it: the macro is the whole comment.
 
 ### Identifiers in Scope Go in Brackets
 
@@ -175,6 +206,10 @@ class QueueMessage<T> {
 ```
 
 The first two lines teach almost nothing, and that's the point: they cost one line each and make the third one readable, because a field with nothing special says so instead of staying silent.
+
+### Exported but Not for Use
+
+Dart has no access level between public and private, so a declaration exported only so another package can call it, generate code from it, or infer a type from it, never meant for a caller to use directly, needs a way to say so instead of carrying full documentation it doesn't deserve. `@internal` on the declaration, or a bare `/// @nodoc` when a tool reads that convention, replaces the complete treatment with a short note: `/// An implementation detail of the generated subclass. Do not use.` Its members don't need documenting field by field either, since the exported-but-not-for-use status already answers why they're bare.
 
 ### What Deserves Documentation
 
