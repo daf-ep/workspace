@@ -108,6 +108,12 @@ jobs:
           find artifacts -type f -exec cp {} release/ \;
           chmod +x release/dpw-linux-x64 release/dpw-macos-arm64
 
+      - name: Pack the rules corpus a binary reads at runtime
+        run: tar -czf release/dpw-rules.tar.gz rules
+
+      - name: Write a checksum for every asset, for install.sh to verify
+        run: (cd release && sha256sum * > dpw-checksums.txt)
+
       - name: Create the release
         env:
           VERSION: ${{ needs.check-version.outputs.version }}

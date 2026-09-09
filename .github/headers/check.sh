@@ -37,7 +37,7 @@
 
 set -euo pipefail
 
-EXTENSIONS="${EXTENSIONS:-dart sh}"
+EXTENSIONS="${EXTENSIONS:-dart sh ps1}"
 EXCLUDED="${EXCLUDED:-.git .dart_tool}"
 SCAN_LINES=60
 

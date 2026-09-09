@@ -9,19 +9,32 @@ Every team re-litigates the same arguments: what deserves a comment, when a test
 ## Install
 
 ```
-git clone git@github.com:daf-ep/workspace.git
-cd workspace
-dart pub global activate --source path cli
+curl -fsSL https://raw.githubusercontent.com/daf-ep/workspace/main/install.sh | sh
 ```
 
-That installs `dpw` globally. From then on, in any project:
+On Windows:
+
+```
+irm https://raw.githubusercontent.com/daf-ep/workspace/main/install.ps1 | iex
+```
+
+That installs `dpw` globally, no Dart required. From then on, in any project:
 
 ```
 cd ~/any/project
-dart pub global run cli:dpw init
+dpw init
 ```
 
 Run it again whenever you want the latest rules. Anything you've customized for that project stays exactly as you left it, and the project keeps the same id across every run.
+
+Working on the CLI itself, rather than just using it, needs the Dart SDK:
+
+```
+git clone git@github.com:daf-ep/workspace.git
+cd workspace/cli
+dart pub get
+dart run bin/dpw.dart init
+```
 
 ## What's inside
 
