@@ -27,17 +27,17 @@ Run it again whenever you want the latest rules. Anything you've customized for 
 
 Eleven gates, one per stage of writing software, from the first line of research to the moment it ships:
 
-1. **Research** — where an answer comes from, and what counts as proof
-2. **Debug** — reproduce, hypothesize, isolate, before touching a line
-3. **Code** — what makes code read like a human wrote it
-4. **Performance** — measure before you optimize, always
-5. **Security** — trust nothing you don't control
-6. **Comments** — what deserves one, and what doesn't
-7. **Docs** — internal documentation that describes the present, never the history
-8. **Test** — running it is mandatory, writing a test is a decision
-9. **Review** — five criteria, scored honestly, before anything gets committed
-10. **Push** — turning a messy working tree into clean, atomic commits
-11. **CI** — what a green check actually proves, and what it doesn't
+1. **Research.** Where an answer comes from, and what counts as proof.
+2. **Debug.** Reproduce it, hypothesize before intervening, isolate by input or by history, confirm before you fix it.
+3. **Code.** What makes code read like a human wrote it.
+4. **Performance.** Measure before you optimize, always.
+5. **Security.** Trust nothing you don't control.
+6. **Comments.** What deserves one, and what doesn't.
+7. **Context.** Documentation that describes the present, or a synced decision record when a project runs one instead.
+8. **Test.** Running it is mandatory, writing a test is a decision.
+9. **Review.** Five criteria, scored honestly, before anything gets committed.
+10. **Push.** Turning a messy working tree into clean, atomic commits.
+11. **CI.** What a green check actually proves, and what it doesn't.
 
 None of it names a language, a company, or a tool. A `customization/` layer lets a single project override one detail, a commit tag list, a review threshold, without touching the rules themselves.
 
