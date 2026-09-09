@@ -18,23 +18,31 @@ The third is that the path you just wrote gets exercised for real. It's the one 
 
 Rereading your own diff proves nothing, because you're rereading what you meant to write. You have to go through the real entry point, with real inputs.
 
+Exercising for real doesn't cost the same everywhere, and the third check doesn't mean reaching for the most expensive way to exercise a path, it means reaching for the cheapest one that actually exercises it. A path that stays inside a single process usually runs immediately, at no real cost. A path that needs a real network, another machine, or a third-party service costs more to run and fails more often for reasons that have nothing to do with the change. A narrow test built against a faithful double already counts as exercising the path for real, as long as the behavior under test doesn't depend on something only the real dependency provides: scope and cost are two different questions, and a test can be narrow without being a reread of the diff in disguise.
+
 For a command, you run it, with and without its options, and on the cases where it should refuse. A refusal that doesn't refuse is a complete bug. For a function, you call it, from a test or from an entry point. For a fix, you reproduce the defect, confirm it's really there, apply the fix, and confirm it goes away, in that order: a fix applied to a bug never reproduced fixes a hypothesis. For an output, whether it's a generated file, a render, or a message, you look at the result produced, not the code that produces it.
 
 The failing case counts as much as the passing one. Empty input, missing file, incompatible option, an unresponsive terminal: that's where new code breaks, and never on the example you had in mind while writing it.
+
+When the cheapest real way to exercise a path needs a resource the current environment doesn't have, there are two honest moves and no third one. Either reach for a substitute faithful enough to answer the same question and say plainly that it's a substitute, or accept that the path can't be verified here and say that instead. Sliding into a reread of the diff and calling it verification is the move this section exists to rule out.
 
 ## Everything the Change Touches Has to Answer
 
 The question isn't whether the new thing works, it's whether everything that depended on what you changed still works. The two have different answers.
 
-The blast radius gets established, it doesn't get guessed. You have to look at who calls the modified symbol, what gets produced from it, what reads it without calling it, like a config, a template, or a contract between two components, and what already exercised it without having been rerun since.
+The blast radius gets established, it doesn't get guessed. You have to look at who calls the modified symbol, what gets produced from it, what reads it without calling it, like a config, a template, or a contract between two components, and what already exercised it without having been rerun since. A test that already existed before the change is part of that blast radius, not an exception to it: once the change touches it or makes it run again, it answers to the same standard as a test written today, and a test that runs without ever asserting anything meaningful doesn't get a pass for having been there first.
 
 Renaming, moving, and extracting are the trickiest cases. The compiler catches part of it and lets through everything that travels through a string, a file path, or reflection.
+
+An unstable result never gets dismissed on a single observation. Rerun it, or compare it against how the same test behaved before the change, before deciding whether the instability was already there or the change caused it. A test that turns unstable only after the change is not a false positive to explain away, it's exactly the kind of damage this section asks you to catch: a race condition or a shared timing assumption broken by the change often shows up as an intermittent result before it shows up as a clean failure.
 
 ## When to Write a Test
 
 When its absence would let the problem come back.
 
 A defect you found calls for one, and it's written before the fix, failing without it. A rule, a refusal, or a limit call for one too, because those paths never get walked by normal use, and nothing will signal the day they stop working. A pure function with branches offers the best return there is, plenty of cases for very little setup. And a behavior you just decided on deserves a test, one that keeps the decision from being undone by accident.
+
+A test only earns the place it takes if it can hold that place on its own. It doesn't depend on real system time without controlling how that time passes, it doesn't depend on the order other tests happen to run in, and it doesn't depend on an external service nobody in the room controls. A test built on real time needs a structural guarantee rather than an accidental one: computing an input relative to the moment it runs is fine only when nothing about the gap between two clock readings can flip the expected result, and the moment that gap matters, the test has to control time instead of hoping it stays out of the way. A test written without this constraint is exactly what turns an intermittent result into a guessing game later, once a change comes through and nobody can tell whether the red is new or the test was always this fragile.
 
 You don't need one when running it says everything: a rename the compiler checks in full, a text change, a move with no behavior change, a tooling setting.
 
@@ -58,13 +66,15 @@ You see it red before you see it green. A test written after the fix that passes
 
 Written after the fact, it also tends to marry the observed behavior instead of the intended one, bug included, because the output gets copied into the expectation. The expectation gets decided before looking at the result.
 
-## Three Ways to Lie Without Meaning To
+## Four Ways to Lie Without Meaning To
 
 Saying tests pass without having run them is the most frequent, and the only one that's free to avoid.
 
 Running part of it and concluding about the whole is another. A green file says nothing about the suite, and a suite green locally says nothing about continuous integration.
 
 Fixing a test instead of the code is the third. When a test fails, the first hypothesis is that the change is wrong, and adjusting the expectation removes the only warning you had.
+
+Treating a high coverage number, or a test that runs the code without asserting anything about what it did, as proof of verification is a fourth. Both are proof of execution dressed up as proof of verification, the same lie as the other three wearing a number instead of a sentence.
 
 ## What You Create to Test, You Remove
 
