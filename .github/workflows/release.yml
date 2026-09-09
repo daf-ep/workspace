@@ -1,0 +1,116 @@
+name: Release dpw
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - cli/pubspec.yaml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      should_release: ${{ steps.check.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Read the version from pubspec.yaml
+        id: read
+        run: |
+          version=$(grep '^version:' cli/pubspec.yaml | sed -E 's/^version:[[:space:]]*//')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this version already has a release
+        id: check
+        run: |
+          if git rev-parse "v${{ steps.read.outputs.version }}" >/dev/null 2>&1; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  verify:
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+
+      - name: Resolve, analyse, check the formatting and run the suite
+        run: bash cli/tool/test.sh
+
+  build:
+    needs: verify
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: dpw-linux-x64
+          - os: macos-latest
+            asset: dpw-macos-arm64
+          - os: windows-latest
+            asset: dpw-windows-x64.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+
+      - name: Build dpw for ${{ matrix.asset }}
+        working-directory: cli
+        run: |
+          set -eu
+          dart pub get
+          dart compile exe bin/dpw.dart -o ${{ matrix.asset }}
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ matrix.asset }}
+          path: cli/${{ matrix.asset }}
+          retention-days: 1
+          if-no-files-found: error
+
+  release:
+    needs: [check-version, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: artifacts
+
+      - name: Flatten the downloaded binaries
+        run: |
+          set -eu
+          mkdir release
+          find artifacts -type f -exec cp {} release/ \;
+          chmod +x release/dpw-linux-x64 release/dpw-macos-arm64
+
+      - name: Create the release
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          set -eu
+          gh release create "v$VERSION" release/* --title "v$VERSION" --generate-notes
