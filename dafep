@@ -1,0 +1,78 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+  -h|--help)
+    echo "usage: dafep"
+    echo "  run with no arguments, in any directory, to install dafep as a global"
+    echo "  command and sync .claude/rules/ from this checkout's rules/ directory"
+    exit 0
+    ;;
+esac
+
+ensure_dir() {
+  mkdir -p "$1" 2>/dev/null || {
+    echo "dafep: cannot create $1, check permissions" >&2
+    exit 1
+  }
+}
+
+resolve_script_path() {
+  path="$1"
+  while [ -L "$path" ]; do
+    dir=$(dirname "$path")
+    target=$(readlink "$path")
+    case "$target" in
+      /*) path="$target" ;;
+      *) path="$dir/$target" ;;
+    esac
+  done
+  echo "$path"
+}
+
+self="$0"
+case "$self" in
+  */*) ;;
+  *) self=$(command -v "$self") ;;
+esac
+script_path=$(resolve_script_path "$self")
+script_dir=$(cd "$(dirname "$script_path")" && pwd)
+rules_src="$script_dir/rules"
+
+if [ ! -d "$rules_src" ]; then
+  echo "dafep: no rules directory next to $script_path" >&2
+  exit 1
+fi
+
+bin_dir="$HOME/.local/bin"
+bin_target="$bin_dir/dafep"
+
+ensure_dir "$bin_dir"
+if [ ! -e "$bin_target" ]; then
+  ln -sf "$script_path" "$bin_target"
+  echo "dafep: installed as a command in $bin_target"
+elif [ "$(readlink "$bin_target" 2>/dev/null)" != "$script_path" ]; then
+  ln -sf "$script_path" "$bin_target"
+  echo "dafep: $bin_target now points here instead of its previous target"
+fi
+
+rules_dest=".claude/rules"
+ensure_dir "$rules_dest"
+
+for entry in "$rules_src"/*; do
+  name=$(basename "$entry")
+  [ "$name" = "customization" ] && continue
+  rm -rf "$rules_dest/$name"
+  cp -R "$entry" "$rules_dest/$name"
+done
+
+if [ -d "$rules_src/customization" ]; then
+  ensure_dir "$rules_dest/customization"
+  for file in "$rules_src/customization"/*; do
+    name=$(basename "$file")
+    dest="$rules_dest/customization/$name"
+    [ -e "$dest" ] || cp "$file" "$dest"
+  done
+fi
+
+echo "dafep: rules synced into $(pwd)/$rules_dest"
