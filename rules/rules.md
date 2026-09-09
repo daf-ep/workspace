@@ -35,7 +35,7 @@ A `customization/` file never repeats the mechanism, it only says what **this pa
 
 ## The Eleven Gates
 
-They follow in order, and each assumes the previous one has been cleared. Two of them only apply in a specific circumstance, `debug.md` when facing a defect and `ci.md` when the project has a CI; the others apply every time, including when their content amounts to saying that nothing calls for them this time.
+They follow in order, and each assumes the previous one has been cleared. Two of them only apply in a specific circumstance, `debug.md` when facing a defect, and `ci.md` when the project has a CI; the others apply every time, including when their content amounts to saying that nothing calls for them this time.
 
 **1. `common/research.md`, before writing.** Where to find the answer depending on the question at hand, and what counts as proof. The file also lists what looks like proof without being one, from sales talk to one's own certainty.
 
@@ -49,7 +49,7 @@ They follow in order, and each assumes the previous one has been cleared. Two of
 
 **6. `common/comments.md`, also while writing.** In which files a comment has the right to exist, what it should say when there is one, what to reach for instead when a passage needs explaining, and where the why that doesn't fit on one line goes. Its last section, "How to write it," spills past comments: it applies to **any text you write**, including a test name, an assertion message, a log line, and a label a command prints. That's where the signs never to use live, arrows and emoji first.
 
-**7. `common/docs.md`, in the same motion.** The why that `comments.md` sends out of the source lands there, and this file says how to write it. The rule that governs everything else is that documentation describes the present: when a decision changes, the block gets rewritten instead of stacking the new version under the old one with a date.
+**7. `common/context.md`, in the same motion.** The why that `comments.md` sends out of the source lands there, whether the project writes it by hand, in files, or captures it with a sync command it runs instead. The rule that governs the hand-written form is that documentation describes the present: when a decision changes, the block gets rewritten instead of stacking the new version under the old one with a date. When a project syncs instead, the same file says what counts as a decision worth capturing, the four fields it always carries, why syncing replaces a record instead of appending to it, and what stands in for a diff when nobody reads one.
 
 **8. `common/test.md`, before saying it's done.** The three checks to run, the difference between rereading your diff and actually exercising your code, how to establish what the change touches, and when a test is warranted. It also says what to report, including what you couldn't verify.
 

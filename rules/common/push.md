@@ -84,7 +84,7 @@ The first six hold together through the call, generation, and module links. That
 
 ### Internal Documentation
 
-When it lives outside the repos, it never gets committed. It still gets updated, since that's where the why goes. The detail is in `docs.md`.
+When it lives outside the repos, it never gets committed. It still gets updated, since that's where the why goes. The detail is in `context.md`.
 
 ### One File Modified for Two Scopes
 

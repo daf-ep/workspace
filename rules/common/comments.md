@@ -66,7 +66,7 @@ The what is already written right below, and it'll still be right once the comme
 
 ## The Why That Runs Past a Few Lines Goes Into the Docs
 
-An accepted trade-off, an external service's limit, an architecture decision, a tooling bug worked around, all of that gets written into the internal documentation. The code carries the short reason, on the declaration, the documentation carries the decision and what was ruled out. The rest is in `docs.md`.
+An accepted trade-off, an external service's limit, an architecture decision, a tooling bug worked around, all of that gets written into the internal documentation. The code carries the short reason, on the declaration, the documentation carries the decision and what was ruled out. The rest is in `context.md`.
 
 It's also where the paragraph you would have placed in the middle of a body goes. When it doesn't fit in two sentences on the declaration, it goes down into the documentation, and the declaration keeps the line that says a constraint exists.
 
