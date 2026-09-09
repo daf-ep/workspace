@@ -36,12 +36,63 @@
 
 import 'dart:io';
 
-import 'package:cli/runner.dart' as runner;
-import 'package:cli/src/commands/init.dart';
-import 'package:cli/src/runner/dpw_command.dart';
+/// Everything this tool prints, so that no code writes to a stream itself.
+///
+/// The implementation decides where the text lands and how much of it
+/// survives: [StdoutLogger] writes to the terminal, [BufferLogger] keeps it
+/// for a test.
+abstract class Logger {
+  /// Whether [printError] was called at least once.
+  ///
+  /// The runner can read this after a command returns, the same way a thrown
+  /// [ToolExit] carries its own exit code.
+  bool get hadErrorOutput;
 
-Future<void> main(List<String> args) async {
-  final int code = await runner.run(args, () => <DpwCommand>[InitCommand()]);
+  /// Prints [message] on standard output.
+  void printStatus(String message);
 
-  if (code != 0) exit(code);
+  /// Prints [message] on standard error, and marks the run as having failed.
+  void printError(String message);
+}
+
+/// The [Logger] that writes to the real standard streams.
+class StdoutLogger extends Logger {
+  @override
+  bool hadErrorOutput = false;
+
+  @override
+  void printStatus(String message) => stdout.writeln(message);
+
+  @override
+  void printError(String message) {
+    hadErrorOutput = true;
+    stderr.writeln(message);
+  }
+}
+
+/// A [Logger] that keeps every message instead of printing it.
+///
+/// A command tested through the context this way never touches a real stream,
+/// and the assertion reads exactly what a user would have seen.
+class BufferLogger extends Logger {
+  @override
+  bool hadErrorOutput = false;
+
+  final StringBuffer _status = StringBuffer();
+  final StringBuffer _error = StringBuffer();
+
+  /// Everything passed to [printStatus].
+  String get statusText => _status.toString();
+
+  /// Everything passed to [printError].
+  String get errorText => _error.toString();
+
+  @override
+  void printStatus(String message) => _status.writeln(message);
+
+  @override
+  void printError(String message) {
+    hadErrorOutput = true;
+    _error.writeln(message);
+  }
 }

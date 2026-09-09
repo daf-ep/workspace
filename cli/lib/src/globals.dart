@@ -34,14 +34,34 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+library;
+
 import 'dart:io';
 
-import 'package:cli/runner.dart' as runner;
-import 'package:cli/src/commands/init.dart';
-import 'package:cli/src/runner/dpw_command.dart';
+import 'base/context.dart';
+import 'base/logger.dart';
+import 'rules_sync.dart';
 
-Future<void> main(List<String> args) async {
-  final int code = await runner.run(args, () => <DpwCommand>[InitCommand()]);
+/// The context the current zone carries.
+AppContext get context => AppContext.current;
 
-  if (code != 0) exit(code);
+Logger? _loggerInstance;
+
+/// Everything this run prints.
+Logger get logger => context.get<Logger>() ?? (_loggerInstance ??= StdoutLogger());
+
+/// Where this run's rules directory is, found once and read from the context after that.
+///
+/// Wrapped rather than looked up through the raw [Directory] type, so a test
+/// overriding it never risks colliding with an unrelated one a future
+/// override might register.
+class RulesSource {
+  /// Wraps [directory], the answer [rulesSource] should give for this run.
+  const RulesSource(this.directory);
+
+  /// The rules directory this run reads from, or null when none was found.
+  final Directory? directory;
 }
+
+/// The rules directory this run syncs from, or null when none was found.
+Directory? get rulesSource => (context.get<RulesSource>() ?? RulesSource(findRulesSource())).directory;

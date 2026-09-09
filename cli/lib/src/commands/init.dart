@@ -36,12 +36,43 @@
 
 import 'dart:io';
 
-import 'package:cli/runner.dart' as runner;
-import 'package:cli/src/commands/init.dart';
-import 'package:cli/src/runner/dpw_command.dart';
+import 'package:path/path.dart' as p;
 
-Future<void> main(List<String> args) async {
-  final int code = await runner.run(args, () => <DpwCommand>[InitCommand()]);
+import '../base/common.dart';
+import '../globals.dart' as globals;
+import '../project_id.dart';
+import '../rules_sync.dart';
+import '../runner/dpw_command.dart';
 
-  if (code != 0) exit(code);
+/// Creates `.claude/rules` in the current directory and assigns this
+/// project its id.
+class InitCommand extends DpwCommand {
+  @override
+  final name = 'init';
+
+  @override
+  final description = 'Sync .claude/rules from this checkout and assign the project an id.';
+
+  @override
+  Future<DpwCommandResult> runCommand() async {
+    final rulesSource = globals.rulesSource;
+    if (rulesSource == null) {
+      throwToolExit('dpw: no rules directory found next to this tool');
+    }
+
+    final cwd = Directory.current.path;
+    final rulesDest = Directory(p.join(cwd, '.claude', 'rules'));
+    syncRules(source: rulesSource, destination: rulesDest);
+    globals.logger.printStatus('dpw: rules synced into ${rulesDest.path}');
+
+    final idFile = File(p.join(cwd, '.claude', 'ID'));
+    final id = ensureProjectId(idFile);
+    if (id.created) {
+      globals.logger.printStatus('dpw: assigned this project id ${id.id}');
+    } else {
+      globals.logger.printStatus('dpw: this project already has id ${id.id}');
+    }
+
+    return const DpwCommandResult.success();
+  }
 }

@@ -36,12 +36,33 @@
 
 import 'dart:io';
 
-import 'package:cli/runner.dart' as runner;
+import 'package:cli/src/base/context.dart';
+import 'package:cli/src/base/logger.dart';
 import 'package:cli/src/commands/init.dart';
-import 'package:cli/src/runner/dpw_command.dart';
+import 'package:cli/src/globals.dart';
+import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
 
-Future<void> main(List<String> args) async {
-  final int code = await runner.run(args, () => <DpwCommand>[InitCommand()]);
+void main() {
+  test('logs through the injected logger instead of a real stream', () async {
+    final rulesSource = Directory(p.join(Directory.current.path, '..', 'rules'));
+    final project = Directory.systemTemp.createTempSync('dpw_init_command_');
+    final originalCwd = Directory.current;
+    addTearDown(() => project.deleteSync(recursive: true));
+    addTearDown(() => Directory.current = originalCwd);
 
-  if (code != 0) exit(code);
+    Directory.current = project;
+    final buffer = BufferLogger();
+
+    final exitCode = await AppContext.current.run<int>(
+      body: () => InitCommand().run(),
+      overrides: <Type, Generator>{Logger: () => buffer, RulesSource: () => RulesSource(rulesSource)},
+    );
+
+    expect(exitCode, 0);
+    expect(buffer.hadErrorOutput, isFalse);
+    expect(buffer.statusText, contains('rules synced into'));
+    expect(buffer.statusText, contains('assigned this project id'));
+    expect(File(p.join(project.path, '.claude', 'rules', 'rules.md')).existsSync(), isTrue);
+  });
 }

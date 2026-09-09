@@ -34,44 +34,55 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import 'dart:io';
-
 import 'package:args/command_runner.dart';
-import 'package:path/path.dart' as p;
 
-import '../project_id.dart';
-import '../rules_sync.dart';
+import '../globals.dart' as globals;
 
-/// Creates `.claude/rules` in the current directory and assigns this
-/// project its id.
-class InitCommand extends Command<int> {
+/// How a command ended.
+enum ExitStatus {
+  /// The command did what it was asked.
+  success,
+
+  /// The command could not do what it was asked.
+  fail,
+}
+
+/// What a command answers when it returns.
+class DpwCommandResult {
+  /// Ends the command on [exitStatus].
+  const DpwCommandResult(this.exitStatus);
+
+  /// Ends the command on [ExitStatus.success].
+  const DpwCommandResult.success() : this(ExitStatus.success);
+
+  /// Ends the command on [ExitStatus.fail].
+  const DpwCommandResult.fail() : this(ExitStatus.fail);
+
+  /// How the command ended.
+  final ExitStatus exitStatus;
+}
+
+/// The base every dpw command extends.
+///
+/// A subclass writes [runCommand] and returns the [DpwCommandResult] it ended
+/// on, instead of a bare integer: what a command can answer grows here, once,
+/// rather than at every call site that reads an exit code.
+abstract class DpwCommand extends Command<int> {
+  /// Opens a context for this command and runs it.
+  ///
+  /// The child context is what lets a test override this command's logger, or
+  /// any other dependency, without changing what [runCommand] itself does.
   @override
-  final name = 'init';
-
-  @override
-  final description = 'Sync .claude/rules from this checkout and assign the project an id.';
-
-  @override
-  Future<int> run() async {
-    final rulesSource = findRulesSource();
-    if (rulesSource == null) {
-      stderr.writeln('dpw: no rules directory found next to this tool');
-      return 1;
-    }
-
-    final cwd = Directory.current.path;
-    final rulesDest = Directory(p.join(cwd, '.claude', 'rules'));
-    syncRules(source: rulesSource, destination: rulesDest);
-    stdout.writeln('dpw: rules synced into ${rulesDest.path}');
-
-    final idFile = File(p.join(cwd, '.claude', 'ID'));
-    final id = ensureProjectId(idFile);
-    if (id.created) {
-      stdout.writeln('dpw: assigned this project id ${id.id}');
-    } else {
-      stdout.writeln('dpw: this project already has id ${id.id}');
-    }
-
-    return 0;
+  Future<int> run() {
+    return globals.context.run<int>(
+      name: name,
+      body: () async {
+        final DpwCommandResult result = await runCommand();
+        return result.exitStatus == ExitStatus.success ? 0 : 1;
+      },
+    );
   }
+
+  /// What this command does, once it is reached.
+  Future<DpwCommandResult> runCommand();
 }

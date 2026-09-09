@@ -34,21 +34,28 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import 'dart:io';
+/// The name this tool is invoked by.
+const String kToolName = 'dpw';
 
-import 'package:args/command_runner.dart';
+/// A failure the user is meant to read, rather than a bug to report.
+///
+/// The runner catches it, prints [message] and leaves with [exitCode], so no
+/// code below it has to decide how the process ends.
+final class ToolExit implements Exception {
+  /// Fails with [message], leaving with [exitCode].
+  const ToolExit(this.message, {this.exitCode = 1});
 
-import 'commands/init_command.dart';
+  /// What went wrong, or null to leave without a word.
+  final String? message;
 
-/// Runs the `dpw` command with [arguments], returning its exit code.
-Future<int> runDpw(List<String> arguments) async {
-  final runner = CommandRunner<int>('dpw', 'Sync the rules corpus into a project and manage its context.')
-    ..addCommand(InitCommand());
+  /// The status the process leaves with.
+  final int exitCode;
 
-  try {
-    return await runner.run(arguments) ?? 0;
-  } on UsageException catch (error) {
-    stderr.writeln(error);
-    return 64;
-  }
+  @override
+  String toString() => message ?? 'ToolExit';
+}
+
+/// Throws a [ToolExit] carrying [message] and [exitCode].
+Never throwToolExit(String? message, {int exitCode = 1}) {
+  throw ToolExit(message, exitCode: exitCode);
 }

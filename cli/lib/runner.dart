@@ -36,12 +36,45 @@
 
 import 'dart:io';
 
-import 'package:cli/runner.dart' as runner;
-import 'package:cli/src/commands/init.dart';
-import 'package:cli/src/runner/dpw_command.dart';
+import 'package:args/command_runner.dart';
 
-Future<void> main(List<String> args) async {
-  final int code = await runner.run(args, () => <DpwCommand>[InitCommand()]);
+import 'src/base/common.dart';
+import 'src/base/context.dart';
+import 'src/globals.dart' as globals;
+import 'src/runner/dpw_command.dart';
 
-  if (code != 0) exit(code);
+/// The status a command called the wrong way leaves with, as `sysexits.h` names it.
+const int kExitCodeUsage = 64;
+
+/// Runs [args] against the commands [commands] builds, and returns the exit status.
+///
+/// [commands] is a callback and not a list because a command is built inside
+/// the context, where an override from [overrides] already answers.
+///
+/// This is where the process learns how it ends, and the only place that
+/// knows: a [ToolExit] carries its own status, a command called wrong answers
+/// [kExitCodeUsage], anything a command returns otherwise passes through
+/// as is.
+///
+/// [overrides] replaces entries of the context, which is how a test runs a
+/// command against its own logger or rules source.
+Future<int> run(List<String> args, List<DpwCommand> Function() commands, {Map<Type, Generator>? overrides}) {
+  return AppContext.current.run<int>(
+    name: 'dpw',
+    overrides: overrides,
+    body: () async {
+      final runner = CommandRunner<int>('dpw', 'Sync the rules corpus into a project and manage its context.');
+      commands().forEach(runner.addCommand);
+
+      try {
+        return await runner.run(args) ?? 0;
+      } on ToolExit catch (error) {
+        if (error.message case final String message) globals.logger.printError(message);
+        return error.exitCode;
+      } on UsageException catch (error) {
+        stderr.writeln(error);
+        return kExitCodeUsage;
+      }
+    },
+  );
 }
