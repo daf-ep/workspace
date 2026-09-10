@@ -43,9 +43,8 @@ $ErrorActionPreference = 'Stop'
 $Repository = if ($env:DPW_REPOSITORY) { $env:DPW_REPOSITORY } else { 'daf-ep/workspace' }
 $InstallDir = if ($env:DPW_DIRECTORY) { $env:DPW_DIRECTORY } else { Join-Path $env:LOCALAPPDATA 'dpw' }
 
-$BinaryAsset = 'dpw-windows-x64.exe'
+$BundleAsset = 'dpw-windows-x64.tar.gz'
 $ChecksumsAsset = 'dpw-checksums.txt'
-$RulesAsset = 'dpw-rules.tar.gz'
 
 function Fail($message) {
   Write-Error $message
@@ -77,32 +76,31 @@ $checksumsFile = Join-Path $InstallDir $ChecksumsAsset
 Write-Host "  $ChecksumsAsset"
 Get-Asset $ChecksumsAsset $checksumsFile
 
-$binaryPath = Join-Path $InstallDir 'dpw.exe'
-Write-Host "  $BinaryAsset"
-Get-Asset $BinaryAsset $binaryPath
-Test-Checksum $binaryPath $BinaryAsset $checksumsFile
+$archive = Join-Path $InstallDir $BundleAsset
+Write-Host "  $BundleAsset"
+Get-Asset $BundleAsset $archive
+Test-Checksum $archive $BundleAsset $checksumsFile
 
-$archive = Join-Path $InstallDir $RulesAsset
-Write-Host "  $RulesAsset"
-Get-Asset $RulesAsset $archive
-Test-Checksum $archive $RulesAsset $checksumsFile
-
-$rules = Join-Path $InstallDir 'rules'
-if (Test-Path $rules) { Remove-Item $rules -Recurse -Force }
+$binDir = Join-Path $InstallDir 'bin'
+$libDir = Join-Path $InstallDir 'lib'
+if (Test-Path $binDir) { Remove-Item $binDir -Recurse -Force }
+if (Test-Path $libDir) { Remove-Item $libDir -Recurse -Force }
 tar -xzf $archive -C $InstallDir
-if ($LASTEXITCODE -ne 0) { Fail "could not unpack $RulesAsset. Windows 10 1803 and later ship tar." }
+if ($LASTEXITCODE -ne 0) { Fail "could not unpack $BundleAsset. Windows 10 1803 and later ship tar." }
 Remove-Item $archive -Force
 Remove-Item $checksumsFile -Force
 
-if (-not (Test-Path (Join-Path $rules 'rules.md'))) { Fail "$RulesAsset carried no rules/rules.md" }
+$binaryPath = Join-Path $binDir 'dpw.exe'
+$rules = Join-Path $binDir 'rules'
+if (-not (Test-Path (Join-Path $rules 'rules.md'))) { Fail "$BundleAsset carried no bin/rules/rules.md" }
 
 Write-Host ''
 Write-Host "Ready. dpw is installed at $binaryPath, reading its rules from $rules."
 
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-if (";$userPath;" -notlike "*;$InstallDir;*") {
-  [Environment]::SetEnvironmentVariable('Path', "$userPath;$InstallDir", 'User')
-  Write-Host "Added $InstallDir to your user PATH. Open a new terminal, then run dpw init in any project."
+if (";$userPath;" -notlike "*;$binDir;*") {
+  [Environment]::SetEnvironmentVariable('Path', "$userPath;$binDir", 'User')
+  Write-Host "Added $binDir to your user PATH. Open a new terminal, then run dpw init in any project."
 } else {
   Write-Host "Run dpw init in any project."
 }

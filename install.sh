@@ -42,7 +42,6 @@ INSTALL_DIR="${DPW_DIRECTORY:-$HOME/.local/share/dpw}"
 BIN_DIR="${DPW_BIN_DIR:-$HOME/.local/bin}"
 
 CHECKSUMS_ASSET="dpw-checksums.txt"
-RULES_ASSET="dpw-rules.tar.gz"
 
 say() { printf '%s\n' "$*"; }
 fail() { printf '%s\n' "$*" >&2; exit 1; }
@@ -50,8 +49,8 @@ fail() { printf '%s\n' "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
 case "$(uname -s)" in
-  Linux) BINARY_ASSET="dpw-linux-x64" ;;
-  Darwin) BINARY_ASSET="dpw-macos-arm64" ;;
+  Linux) BUNDLE_ASSET="dpw-linux-x64.tar.gz" ;;
+  Darwin) BUNDLE_ASSET="dpw-macos-arm64.tar.gz" ;;
   *) fail "dpw: no build for $(uname -s). Linux and macOS are published, Windows installs with install.ps1." ;;
 esac
 
@@ -106,25 +105,22 @@ CHECKSUMS_FILE="$INSTALL_DIR/$CHECKSUMS_ASSET"
 say "  $CHECKSUMS_ASSET"
 download "$CHECKSUMS_ASSET" "$CHECKSUMS_FILE"
 
-say "  $BINARY_ASSET"
-download "$BINARY_ASSET" "$INSTALL_DIR/dpw"
-verify "$INSTALL_DIR/dpw" "$BINARY_ASSET"
-chmod +x "$INSTALL_DIR/dpw"
+say "  $BUNDLE_ASSET"
+archive="$INSTALL_DIR/$BUNDLE_ASSET"
+download "$BUNDLE_ASSET" "$archive"
+verify "$archive" "$BUNDLE_ASSET"
 
-say "  $RULES_ASSET"
-archive="$INSTALL_DIR/$RULES_ASSET"
-download "$RULES_ASSET" "$archive"
-verify "$archive" "$RULES_ASSET"
-rm -rf "$INSTALL_DIR/rules"
+rm -rf "${INSTALL_DIR:?}/bin" "${INSTALL_DIR:?}/lib"
 tar -xzf "$archive" -C "$INSTALL_DIR"
 rm -f "$archive" "$CHECKSUMS_FILE"
+chmod +x "$INSTALL_DIR/bin/dpw"
 
-[ -f "$INSTALL_DIR/rules/rules.md" ] || fail "$RULES_ASSET carried no rules/rules.md"
+[ -f "$INSTALL_DIR/bin/rules/rules.md" ] || fail "$BUNDLE_ASSET carried no bin/rules/rules.md"
 
-ln -sfn "$INSTALL_DIR/dpw" "$BIN_DIR/dpw"
+ln -sfn "$INSTALL_DIR/bin/dpw" "$BIN_DIR/dpw"
 
 say ""
-say "Ready. dpw is installed at $BIN_DIR/dpw, reading its rules from $INSTALL_DIR/rules."
+say "Ready. dpw is installed at $BIN_DIR/dpw, reading its rules from $INSTALL_DIR/bin/rules."
 
 case ":$PATH:" in
   *":$BIN_DIR:"*) say "Run dpw init in any project." ;;
