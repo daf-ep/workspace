@@ -96,7 +96,7 @@ void main() {
 
     expect(result.exitCode, 0, reason: result.stderr.toString());
     expect(result.stdout, contains('this project is github.com/dpw-tests/standalone-e2e'));
-    expect(await readRule(databasePath: rulesDatabasePath, path: 'rules.md'), isNotNull);
+    expect(await readRule(databasePath: rulesDatabasePath, name: 'rules', type: 'rules'), isNotNull);
     expect(File(p.join(project.path, '.claude', 'rules', 'customization', 'push.md')).existsSync(), isTrue);
   });
 

@@ -42,17 +42,23 @@ import 'package:path/path.dart' as p;
 
 part 'database.g.dart';
 
-/// One file of the rules corpus, keyed by its path relative to the `rules/`
-/// checkout, for example `rules.md` or `common/code.md`.
+/// One file of the rules corpus: its [type] is the top-level directory it
+/// ships under (`common`, `dart`, `js`), or `rules` for the corpus entry
+/// point, which has no directory of its own and is named `rules` under
+/// both fields.
 class RuleFiles extends Table {
-  /// The file's path, relative to the corpus root, forward-slash separated.
-  TextColumn get path => text()();
+  /// The file's name, without its `.md` extension.
+  TextColumn get name => text()();
+
+  /// The corpus directory this file ships under, or `rules` for the entry
+  /// point.
+  TextColumn get type => text()();
 
   /// The file's full text.
   TextColumn get content => text()();
 
   @override
-  Set<Column> get primaryKey => {path};
+  Set<Column> get primaryKey => {name, type};
 }
 
 /// The database every project on this machine shares, holding one copy of
@@ -65,7 +71,9 @@ class RulesDatabase extends _$RulesDatabase {
   int get schemaVersion => 1;
 }
 
-/// Replaces every row in [databasePath] with [contents], keyed by path.
+/// Replaces every row in [databasePath] with [contents], keyed by the
+/// corpus-relative path each entry names, for example `rules.md` or
+/// `common/code.md`.
 ///
 /// Runs as a single transaction, so a reader never sees a half-replaced
 /// corpus: either the previous sync's rows or this one's, never a mix.
@@ -75,9 +83,10 @@ Future<void> syncRulesDatabase({required String databasePath, required Map<Strin
     await database.transaction(() async {
       await database.delete(database.ruleFiles).go();
       for (final entry in contents.entries) {
+        final parsed = _parsePath(entry.key);
         await database
             .into(database.ruleFiles)
-            .insert(RuleFilesCompanion.insert(path: entry.key, content: entry.value));
+            .insert(RuleFilesCompanion.insert(name: parsed.name, type: parsed.type, content: entry.value));
       }
     });
   } finally {
@@ -85,24 +94,32 @@ Future<void> syncRulesDatabase({required String databasePath, required Map<Strin
   }
 }
 
-/// The text at [path] in the database at [databasePath], or null when no
-/// rule file was ever synced under that path.
-Future<String?> readRule({required String databasePath, required String path}) async {
+/// The text of the file named [name] of [type] in the database at
+/// [databasePath], or null when no such file was ever synced.
+Future<String?> readRule({required String databasePath, required String name, required String type}) async {
   final database = _open(databasePath);
   try {
-    final row = await (database.select(database.ruleFiles)..where((r) => r.path.equals(path))).getSingleOrNull();
+    final row = await (database.select(
+      database.ruleFiles,
+    )..where((r) => r.name.equals(name) & r.type.equals(type))).getSingleOrNull();
     return row?.content;
   } finally {
     await database.close();
   }
 }
 
-/// Every path the database at [databasePath] carries, sorted.
-Future<List<String>> listRulePaths({required String databasePath}) async {
+/// Every (type, name) pair the database at [databasePath] carries, sorted
+/// by type then name.
+Future<List<({String type, String name})>> listRules({required String databasePath}) async {
   final database = _open(databasePath);
   try {
     final rows = await database.select(database.ruleFiles).get();
-    return rows.map((row) => row.path).toList()..sort();
+    final entries = rows.map((row) => (type: row.type, name: row.name)).toList()
+      ..sort((a, b) {
+        final byType = a.type.compareTo(b.type);
+        return byType != 0 ? byType : a.name.compareTo(b.name);
+      });
+    return entries;
   } finally {
     await database.close();
   }
@@ -111,4 +128,17 @@ Future<List<String>> listRulePaths({required String databasePath}) async {
 RulesDatabase _open(String databasePath) {
   Directory(p.dirname(databasePath)).createSync(recursive: true);
   return RulesDatabase._(NativeDatabase(File(databasePath)));
+}
+
+/// Splits a corpus-relative path like `common/code.md` or `rules.md` into
+/// the (type, name) pair [RuleFiles] keys a row by.
+///
+/// A path with no directory names the corpus entry point, whose type and
+/// name are both `rules`.
+({String type, String name}) _parsePath(String path) {
+  final segments = path.split('/');
+  if (segments.length == 1) {
+    return (type: 'rules', name: p.withoutExtension(segments.single));
+  }
+  return (type: segments.first, name: p.withoutExtension(segments.last));
 }

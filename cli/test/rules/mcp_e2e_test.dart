@@ -86,14 +86,16 @@ void main() {
     final listResult = await server.callTool(CallToolRequest(name: 'list_rules', arguments: {}));
     expect(listResult.isError, isNot(true));
     final listedText = (listResult.content.single as TextContent).text;
-    expect(listedText.split('\n'), ['common/code.md', 'rules.md']);
+    expect(listedText.split('\n'), ['common/code', 'rules/rules']);
 
-    final getResult = await server.callTool(CallToolRequest(name: 'get_rule', arguments: {'path': 'common/code.md'}));
+    final getResult = await server.callTool(
+      CallToolRequest(name: 'get_rule', arguments: {'name': 'code', 'type': 'common'}),
+    );
     expect(getResult.isError, isNot(true));
     expect((getResult.content.single as TextContent).text, 'Write code that reads back cleanly.');
 
     final missingResult = await server.callTool(
-      CallToolRequest(name: 'get_rule', arguments: {'path': 'common/missing.md'}),
+      CallToolRequest(name: 'get_rule', arguments: {'name': 'missing', 'type': 'common'}),
     );
     expect(missingResult.isError, true);
 

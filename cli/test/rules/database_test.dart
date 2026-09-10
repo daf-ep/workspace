@@ -51,32 +51,52 @@ void main() {
 
   tearDown(() => directory.deleteSync(recursive: true));
 
-  test('reads back a synced rule by path', () async {
-    await syncRulesDatabase(databasePath: databasePath, contents: {'rules.md': 'root rule'});
+  test('reads back a synced rule under a directory, by its type and name', () async {
+    await syncRulesDatabase(databasePath: databasePath, contents: {'common/code.md': 'code rule'});
 
-    expect(await readRule(databasePath: databasePath, path: 'rules.md'), 'root rule');
+    expect(await readRule(databasePath: databasePath, name: 'code', type: 'common'), 'code rule');
   });
 
-  test('returns null for a path never synced', () async {
+  test('reads back the corpus entry point under type and name "rules"', () async {
     await syncRulesDatabase(databasePath: databasePath, contents: {'rules.md': 'root rule'});
 
-    expect(await readRule(databasePath: databasePath, path: 'common/code.md'), isNull);
+    expect(await readRule(databasePath: databasePath, name: 'rules', type: 'rules'), 'root rule');
   });
 
-  test('lists every synced path, sorted', () async {
+  test('returns null for a name never synced', () async {
+    await syncRulesDatabase(databasePath: databasePath, contents: {'rules.md': 'root rule'});
+
+    expect(await readRule(databasePath: databasePath, name: 'code', type: 'common'), isNull);
+  });
+
+  test('does not confuse two types that share the same name', () async {
+    await syncRulesDatabase(
+      databasePath: databasePath,
+      contents: {'dart/comments.md': 'dart comments', 'js/comments.md': 'js comments'},
+    );
+
+    expect(await readRule(databasePath: databasePath, name: 'comments', type: 'dart'), 'dart comments');
+    expect(await readRule(databasePath: databasePath, name: 'comments', type: 'js'), 'js comments');
+  });
+
+  test('lists every synced (type, name) pair, sorted', () async {
     await syncRulesDatabase(
       databasePath: databasePath,
       contents: {'rules.md': 'root rule', 'common/code.md': 'code rule', 'common/test.md': 'test rule'},
     );
 
-    expect(await listRulePaths(databasePath: databasePath), ['common/code.md', 'common/test.md', 'rules.md']);
+    expect(await listRules(databasePath: databasePath), [
+      (type: 'common', name: 'code'),
+      (type: 'common', name: 'test'),
+      (type: 'rules', name: 'rules'),
+    ]);
   });
 
   test('a second sync replaces the corpus instead of adding to it', () async {
     await syncRulesDatabase(databasePath: databasePath, contents: {'common/code.md': 'first version'});
     await syncRulesDatabase(databasePath: databasePath, contents: {'rules.md': 'root rule'});
 
-    expect(await readRule(databasePath: databasePath, path: 'common/code.md'), isNull);
-    expect(await readRule(databasePath: databasePath, path: 'rules.md'), 'root rule');
+    expect(await readRule(databasePath: databasePath, name: 'code', type: 'common'), isNull);
+    expect(await readRule(databasePath: databasePath, name: 'rules', type: 'rules'), 'root rule');
   });
 }

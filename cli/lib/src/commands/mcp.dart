@@ -77,10 +77,15 @@ base class DpwServer extends MCPServer with ToolsSupport {
     : super.fromStreamChannel(
         implementation: Implementation(name: 'dpw', version: '1.0.0'),
         instructions:
-            'Before writing any code, call get_rule with path "rules.md": it '
-            'says how to write here, and names the rest of the corpus by '
-            'relative path. Fetch any path it names the same way, through '
-            'get_rule again. Call list_rules if a path does not resolve.\n\n'
+            'Before writing any code, call get_rule with name "rules" and '
+            'type "rules": it says how to write here, and names the rest of '
+            'the corpus by name and type. A file that names another by a '
+            'bare filename, with no type prefix, means one of the same type '
+            'as the file you read it from; a name written as "type/name.md" '
+            'names both directly. A path under "customization/" is not in '
+            'this corpus: it is a real file, already synced under this '
+            'project\'s .claude/rules/customization/, read it from there '
+            'instead. Call list_rules if a lookup does not resolve.\n\n'
             'Call record_decision whenever you make a decision worth '
             'capturing: a choice made against at least one other option, '
             'with a verifiable reason and a consequence for whoever touches '
@@ -99,19 +104,24 @@ base class DpwServer extends MCPServer with ToolsSupport {
   final Tool getRuleTool = Tool(
     name: 'get_rule',
     description:
-        "Reads one file of this project's rules corpus by path, for example "
-        '"rules.md" or "common/code.md". Call list_rules first when the path '
-        'is not known.',
+        "Reads one file of this project's rules corpus, addressed by its "
+        'name and type. type is one of "common", "dart", "js", or "rules" '
+        '(the corpus entry point, itself named "rules"). Call list_rules '
+        'first when either is not known.',
     inputSchema: Schema.object(
-      properties: {'path': Schema.string(description: "The file's path, relative to the corpus root.")},
-      required: ['path'],
+      properties: {
+        'name': Schema.string(description: "The file's name, without its .md extension."),
+        'type': Schema.string(description: 'One of "common", "dart", "js", or "rules".'),
+      },
+      required: ['name', 'type'],
     ),
   );
 
-  /// The tool a client calls to see every path `get_rule` can read.
+  /// The tool a client calls to see every (type, name) pair `get_rule` can
+  /// read.
   final Tool listRulesTool = Tool(
     name: 'list_rules',
-    description: 'Lists every path get_rule can read from the rules corpus.',
+    description: 'Lists every type/name pair get_rule can read from the rules corpus.',
     inputSchema: Schema.object(properties: {}),
   );
 
@@ -133,20 +143,23 @@ base class DpwServer extends MCPServer with ToolsSupport {
   );
 
   Future<CallToolResult> _getRule(CallToolRequest request) async {
-    final path = request.arguments!['path'] as String;
-    final content = await readRule(databasePath: globals.rulesDatabasePath, path: path);
+    final args = request.arguments!;
+    final name = args['name'] as String;
+    final type = args['type'] as String;
+    final content = await readRule(databasePath: globals.rulesDatabasePath, name: name, type: type);
     if (content == null) {
       return CallToolResult(
         isError: true,
-        content: [TextContent(text: 'No rule at path "$path". Call list_rules to see what exists.')],
+        content: [TextContent(text: 'No rule named "$name" of type "$type". Call list_rules to see what exists.')],
       );
     }
     return CallToolResult(content: [TextContent(text: content)]);
   }
 
   Future<CallToolResult> _listRules(CallToolRequest request) async {
-    final paths = await listRulePaths(databasePath: globals.rulesDatabasePath);
-    return CallToolResult(content: [TextContent(text: paths.join('\n'))]);
+    final rules = await listRules(databasePath: globals.rulesDatabasePath);
+    final lines = rules.map((rule) => '${rule.type}/${rule.name}');
+    return CallToolResult(content: [TextContent(text: lines.join('\n'))]);
   }
 
   Future<CallToolResult> _recordDecision(CallToolRequest request) async {
