@@ -41,7 +41,7 @@ import 'package:dart_mcp/stdio.dart';
 
 import '../decisions.dart';
 import '../globals.dart' as globals;
-import '../rules_database.dart';
+import '../rules/database.dart';
 import '../runner/dpw_command.dart';
 
 /// Runs the MCP server Claude Code talks to over stdio.

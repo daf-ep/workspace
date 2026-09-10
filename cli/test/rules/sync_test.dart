@@ -36,7 +36,7 @@
 
 import 'dart:io';
 
-import 'package:cli/src/rules_sync.dart';
+import 'package:cli/src/rules/sync.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 

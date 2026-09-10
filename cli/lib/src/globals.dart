@@ -44,7 +44,7 @@ import 'base/common.dart';
 import 'base/context.dart';
 import 'base/logger.dart';
 import 'git_identity.dart';
-import 'rules_sync.dart';
+import 'rules/sync.dart';
 
 /// The context the current zone carries.
 AppContext get context => AppContext.current;

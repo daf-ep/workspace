@@ -41,8 +41,8 @@ import 'package:path/path.dart' as p;
 import '../base/common.dart';
 import '../globals.dart' as globals;
 import '../mcp_config.dart';
-import '../rules_database.dart';
-import '../rules_sync.dart';
+import '../rules/database.dart';
+import '../rules/sync.dart';
 import '../runner/dpw_command.dart';
 
 /// Syncs the shared rules database from this checkout, ensures this

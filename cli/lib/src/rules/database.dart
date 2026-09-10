@@ -40,7 +40,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 
-part 'rules_database.g.dart';
+part 'database.g.dart';
 
 /// One file of the rules corpus, keyed by its path relative to the `rules/`
 /// checkout, for example `rules.md` or `common/code.md`.

@@ -37,7 +37,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:cli/src/rules_database.dart';
+import 'package:cli/src/rules/database.dart';
 import 'package:dart_mcp/client.dart';
 import 'package:dart_mcp/stdio.dart';
 import 'package:path/path.dart' as p;

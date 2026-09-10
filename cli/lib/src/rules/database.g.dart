@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'rules_database.dart';
+part of 'database.dart';
 
 // ignore_for_file: type=lint
 class $RuleFilesTable extends RuleFiles with TableInfo<$RuleFilesTable, RuleFile> {

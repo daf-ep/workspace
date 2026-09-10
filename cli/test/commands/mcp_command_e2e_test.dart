@@ -36,67 +36,72 @@
 
 import 'dart:io';
 
-import 'package:cli/src/rules_database.dart';
 import 'package:dart_mcp/client.dart';
 import 'package:dart_mcp/stdio.dart';
 import 'package:path/path.dart' as p;
+import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 
-import 'support/fake_git_repo.dart';
+import '../support/fake_git_repo.dart';
 
 void main() {
-  test('a real client can read the synced rules corpus through get_rule and list_rules', () async {
-    final project = Directory.systemTemp.createTempSync('dpw_rules_mcp_e2e_project_');
-    final rulesDatabaseDir = Directory.systemTemp.createTempSync('dpw_rules_mcp_e2e_db_');
+  test('a real client can call record_decision and it lands in sqlite', () async {
+    final project = Directory.systemTemp.createTempSync('dpw_mcp_e2e_project_');
+    final databaseDir = Directory.systemTemp.createTempSync('dpw_mcp_e2e_db_');
     addTearDown(() => project.deleteSync(recursive: true));
-    addTearDown(() => rulesDatabaseDir.deleteSync(recursive: true));
-    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/rules-mcp-e2e.git');
+    addTearDown(() => databaseDir.deleteSync(recursive: true));
+    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/mcp-e2e.git');
 
-    final rulesDatabasePath = p.join(rulesDatabaseDir.path, 'rules.sqlite3');
-    await syncRulesDatabase(
-      databasePath: rulesDatabasePath,
-      contents: {'rules.md': 'How We Work', 'common/code.md': 'Write code that reads back cleanly.'},
-    );
-
+    final databasePath = p.join(databaseDir.path, 'decisions.sqlite3');
     final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
 
-    final client = MCPClient(Implementation(name: 'rules_mcp_e2e_test', version: '0.0.1'));
+    final client = MCPClient(Implementation(name: 'mcp_command_e2e_test', version: '0.0.1'));
     final process = await Process.start(
       Platform.resolvedExecutable,
       ['run', binPath, 'mcp'],
       workingDirectory: project.path,
-      environment: {'DPW_RULES_DATABASE': rulesDatabasePath},
+      environment: {'DPW_DECISIONS_DATABASE': databasePath},
     );
     addTearDown(process.kill);
 
     final server = client.connectServer(stdioChannel(input: process.stdout, output: process.stdin));
 
-    await server.initialize(
+    final initializeResult = await server.initialize(
       InitializeRequest(
         protocolVersion: ProtocolVersion.latestSupported,
         capabilities: client.capabilities,
         clientInfo: client.implementation,
       ),
     );
+    expect(initializeResult.capabilities.tools, isNotNull);
     server.notifyInitialized();
 
     final tools = await server.listTools(ListToolsRequest());
-    expect(tools.tools.map((tool) => tool.name), containsAll(['get_rule', 'list_rules']));
+    expect(tools.tools.map((tool) => tool.name), contains('record_decision'));
 
-    final listResult = await server.callTool(CallToolRequest(name: 'list_rules', arguments: {}));
-    expect(listResult.isError, isNot(true));
-    final listedText = (listResult.content.single as TextContent).text;
-    expect(listedText.split('\n'), ['common/code.md', 'rules.md']);
-
-    final getResult = await server.callTool(CallToolRequest(name: 'get_rule', arguments: {'path': 'common/code.md'}));
-    expect(getResult.isError, isNot(true));
-    expect((getResult.content.single as TextContent).text, 'Write code that reads back cleanly.');
-
-    final missingResult = await server.callTool(
-      CallToolRequest(name: 'get_rule', arguments: {'path': 'common/missing.md'}),
+    final result = await server.callTool(
+      CallToolRequest(
+        name: 'record_decision',
+        arguments: {
+          'decided': 'Use sqlite3 directly for the decisions database.',
+          'why': 'No schema is settled enough yet to justify a code generator.',
+          'implies': 'A future move to drift replaces this file, not the schema.',
+          'verified': 'This end-to-end test, calling the real tool through a real client.',
+        },
+      ),
     );
-    expect(missingResult.isError, true);
+    expect(result.isError, isNot(true));
 
     await client.shutdown();
+
+    const projectId = 'github.com/dpw-tests/mcp-e2e';
+
+    final db = sqlite3.open(databasePath);
+    addTearDown(db.close);
+    final rows = db.select('SELECT * FROM decisions WHERE project_id = ?', [projectId]);
+
+    expect(rows, hasLength(1));
+    expect(rows.first['decided'], 'Use sqlite3 directly for the decisions database.');
+    expect(rows.first['project_id'], projectId);
   });
 }

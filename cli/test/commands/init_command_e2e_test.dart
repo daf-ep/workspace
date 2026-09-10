@@ -37,11 +37,11 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:cli/src/rules_database.dart';
+import 'package:cli/src/rules/database.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-import 'support/fake_git_repo.dart';
+import '../support/fake_git_repo.dart';
 
 void main() {
   test('running init syncs the shared rules database and .mcp.json for real, in a real git repo', () async {
