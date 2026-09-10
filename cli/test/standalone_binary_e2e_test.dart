@@ -37,7 +37,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:cli/src/rules/database.dart';
+import 'package:cli/src/rules/store.dart';
 import 'package:dart_mcp/client.dart';
 import 'package:dart_mcp/stdio.dart';
 import 'package:path/path.dart' as p;
@@ -85,18 +85,18 @@ void main() {
   tearDown(() => project.deleteSync(recursive: true));
 
   test('finds its own rules once compiled, without a source checkout nearby', () async {
-    final rulesDatabasePath = p.join(project.path, 'rules.sqlite3');
+    final rulesStoreRoot = Directory(p.join(project.path, 'rules_store'));
 
     final result = await Process.run(
       executablePath,
       ['init'],
       workingDirectory: project.path,
-      environment: {'DPW_RULES_DATABASE': rulesDatabasePath, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
+      environment: {'DPW_RULES_DIR': rulesStoreRoot.path, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
     );
 
     expect(result.exitCode, 0, reason: result.stderr.toString());
     expect(result.stdout, contains('this project is github.com/dpw-tests/standalone-e2e'));
-    expect(await readRule(databasePath: rulesDatabasePath, name: 'rules', type: 'rules'), isNotNull);
+    expect(readRule(storeRoot: rulesStoreRoot, name: 'rules', type: 'rules'), isNotNull);
     expect(File(p.join(project.path, '.claude', 'dpw', 'push.md')).existsSync(), isTrue);
   });
 

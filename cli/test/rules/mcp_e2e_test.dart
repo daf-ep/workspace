@@ -36,7 +36,7 @@
 
 import 'dart:io';
 
-import 'package:cli/src/rules/database.dart';
+import 'package:cli/src/rules/store.dart';
 import 'package:dart_mcp/client.dart';
 import 'package:dart_mcp/stdio.dart';
 import 'package:path/path.dart' as p;
@@ -47,14 +47,13 @@ import '../support/fake_git_repo.dart';
 void main() {
   test('a real client can read the synced rules corpus through get_rule and list_rules', () async {
     final project = Directory.systemTemp.createTempSync('dpw_rules_mcp_e2e_project_');
-    final rulesDatabaseDir = Directory.systemTemp.createTempSync('dpw_rules_mcp_e2e_db_');
+    final rulesStoreRoot = Directory.systemTemp.createTempSync('dpw_rules_mcp_e2e_store_');
     addTearDown(() => project.deleteSync(recursive: true));
-    addTearDown(() => rulesDatabaseDir.deleteSync(recursive: true));
+    addTearDown(() => rulesStoreRoot.deleteSync(recursive: true));
     await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/rules-mcp-e2e.git');
 
-    final rulesDatabasePath = p.join(rulesDatabaseDir.path, 'rules.sqlite3');
-    await syncRulesDatabase(
-      databasePath: rulesDatabasePath,
+    replaceGlobalContent(
+      storeRoot: rulesStoreRoot,
       contents: {'rules.md': 'How We Work', 'common/code.md': 'Write code that reads back cleanly.'},
     );
 
@@ -65,7 +64,7 @@ void main() {
       Platform.resolvedExecutable,
       ['run', binPath, 'mcp'],
       workingDirectory: project.path,
-      environment: {'DPW_RULES_DATABASE': rulesDatabasePath, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
+      environment: {'DPW_RULES_DIR': rulesStoreRoot.path, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
     );
     addTearDown(process.kill);
 

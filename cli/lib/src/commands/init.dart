@@ -41,19 +41,18 @@ import 'package:path/path.dart' as p;
 import '../base/common.dart';
 import '../globals.dart' as globals;
 import '../mcp_config.dart';
-import '../rules/database.dart';
+import '../rules/store.dart';
 import '../rules/sync.dart';
 import '../runner/dpw_command.dart';
 
-/// Syncs the shared rules database from this checkout, ensures this
-/// project's customization stubs exist, and declares dpw's MCP server in
-/// `.mcp.json`.
+/// Syncs the shared rules store from this checkout, ensures this project's
+/// customization stubs exist, and declares dpw's MCP server in `.mcp.json`.
 class InitCommand extends DpwCommand {
   @override
   final name = 'init';
 
   @override
-  final description = 'Sync the shared rules database from this checkout and declare the mcp server.';
+  final description = 'Sync the shared rules store from this checkout and declare the mcp server.';
 
   @override
   Future<DpwCommandResult> runCommand() async {
@@ -65,8 +64,9 @@ class InitCommand extends DpwCommand {
       throwToolExit('dpw: no rules directory found next to this tool');
     }
 
-    await syncRulesDatabase(databasePath: globals.rulesDatabasePath, contents: collectRuleContents(rulesSource));
-    globals.logger.printStatus('dpw: shared rules synced into ${globals.rulesDatabasePath}');
+    final storeRoot = globals.rulesStoreRoot;
+    replaceGlobalContent(storeRoot: storeRoot, contents: collectRuleContents(rulesSource));
+    globals.logger.printStatus('dpw: shared rules synced into ${storeRoot.path}');
 
     final projectFilesDest = Directory(p.join(cwd.path, '.claude', 'dpw'));
     syncProjectFiles(contents: collectProjectContents(rulesSource), destination: projectFilesDest);

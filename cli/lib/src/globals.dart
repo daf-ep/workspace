@@ -132,27 +132,28 @@ String get decisionsDatabasePath =>
 String get _defaultDecisionsDatabasePath =>
     _dpwDataPath(envVariable: 'DPW_DECISIONS_DATABASE', filename: 'decisions.sqlite3');
 
-/// Where the shared rules database this run reads and writes lives.
+/// Where the shared rules store this run reads and writes lives.
 ///
-/// Wrapped rather than looked up through a raw [String], so a test overriding
-/// it never risks colliding with an unrelated one a future override might
-/// register.
-class RulesDatabasePath {
-  /// Wraps [path], the answer [rulesDatabasePath] should give for this run.
-  const RulesDatabasePath(this.path);
+/// Wrapped rather than looked up through the raw [Directory] type, so a test
+/// overriding it never risks colliding with an unrelated one a future
+/// override might register.
+class RulesStoreRoot {
+  /// Wraps [directory], the answer [rulesStoreRoot] should give for this run.
+  const RulesStoreRoot(this.directory);
 
-  /// The file this run's rules database lives at.
-  final String path;
+  /// The directory this run's rules store lives at.
+  final Directory directory;
 }
 
-/// The path to the rules database this run reads and writes.
+/// The directory the rules store this run reads and writes lives at.
 ///
-/// One database for every project on the machine, at a fixed place under
-/// the user's home, so `dpw init` writes the corpus once and every project's
+/// One store for every project on the machine, at a fixed place under the
+/// user's home, so `dpw init` writes the corpus once and every project's
 /// `dpw mcp` reads that same copy instead of one duplicated per project.
-String get rulesDatabasePath => (context.get<RulesDatabasePath>() ?? RulesDatabasePath(_defaultRulesDatabasePath)).path;
+Directory get rulesStoreRoot =>
+    (context.get<RulesStoreRoot>() ?? RulesStoreRoot(Directory(_defaultRulesStoreRootPath))).directory;
 
-String get _defaultRulesDatabasePath => _dpwDataPath(envVariable: 'DPW_RULES_DATABASE', filename: 'rules.sqlite3');
+String get _defaultRulesStoreRootPath => _dpwDataPath(envVariable: 'DPW_RULES_DIR', filename: 'rules');
 
 /// How long a remote update check, once made, holds off the next one.
 ///

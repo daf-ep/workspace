@@ -3,15 +3,15 @@
 ## Commands
 
 `init` syncs `global/`, at the `rules/` checkout next to this package, into a
-single database every project on the machine shares, at
-`$HOME/.local/share/dpw/rules.sqlite3` unless `DPW_RULES_DATABASE` says
-otherwise. A later run replaces that database's content wholesale, so it
-always matches the installed corpus exactly. `project/` is the one part of
-the corpus that is not shared: `init` ensures each of its files exists under
-this project's `.claude/dpw/`, without ever overwriting one the project
-already wrote. `init` also declares `dpw`'s MCP server in `.mcp.json`, adding
-or replacing only its own entry and leaving every other server a project
-declared for itself alone.
+single store every project on the machine shares, at
+`$HOME/.local/share/dpw/rules/` unless `DPW_RULES_DIR` says otherwise. A
+later run replaces that store's content wholesale, so it always matches the
+installed corpus exactly. `project/` is the one part of the corpus that is
+not shared: `init` ensures each of its files exists under this project's
+`.claude/dpw/`, without ever overwriting one the project already wrote.
+`init` also declares `dpw`'s MCP server in `.mcp.json`, adding or replacing
+only its own entry and leaving every other server a project declared for
+itself alone.
 
 `dpw` only works inside a git repository whose `origin` remote points at
 GitHub or GitLab: the project's id is `host/owner/repo`, taken from that
@@ -32,7 +32,7 @@ id.
 Every command checks the public corpus, `daf-ep/workspace` on GitHub, for
 updates once it finishes its own work, at most once a day unless
 `DPW_UPDATE_CHECK_INTERVAL_SECONDS` says otherwise. A check that finds the
-corpus changed replaces the shared database wholesale, the same way `init`
+corpus changed replaces the shared store wholesale, the same way `init`
 does, and adds any new `project/` file to the current project's
 `.claude/dpw/`, never overwriting one already there. A check that cannot
 reach GitHub, or that runs before the interval has passed, is silent: dpw

@@ -37,33 +37,32 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:cli/src/rules/database.dart';
+import 'package:cli/src/rules/store.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../support/fake_git_repo.dart';
 
 void main() {
-  test('running init syncs the shared rules database and .mcp.json for real, in a real git repo', () async {
+  test('running init syncs the shared rules store and .mcp.json for real, in a real git repo', () async {
     final project = Directory.systemTemp.createTempSync('dafep_e2e_');
-    final rulesDatabaseDir = Directory.systemTemp.createTempSync('dafep_e2e_rules_db_');
+    final rulesStoreRoot = Directory.systemTemp.createTempSync('dafep_e2e_rules_store_');
     addTearDown(() => project.deleteSync(recursive: true));
-    addTearDown(() => rulesDatabaseDir.deleteSync(recursive: true));
+    addTearDown(() => rulesStoreRoot.deleteSync(recursive: true));
     await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/init-e2e.git');
 
     final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
-    final rulesDatabasePath = p.join(rulesDatabaseDir.path, 'rules.sqlite3');
 
     final result = await Process.run(
       Platform.resolvedExecutable,
       ['run', binPath, 'init'],
       workingDirectory: project.path,
-      environment: {'DPW_RULES_DATABASE': rulesDatabasePath, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
+      environment: {'DPW_RULES_DIR': rulesStoreRoot.path, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
     );
 
     expect(result.exitCode, 0, reason: result.stderr.toString());
     expect(result.stdout, contains('this project is github.com/dpw-tests/init-e2e'));
-    expect(await readRule(databasePath: rulesDatabasePath, name: 'rules', type: 'rules'), isNotNull);
+    expect(readRule(storeRoot: rulesStoreRoot, name: 'rules', type: 'rules'), isNotNull);
     expect(File(p.join(project.path, '.claude', 'dpw', 'push.md')).existsSync(), isTrue);
 
     final mcpConfig = jsonDecode(File(p.join(project.path, '.mcp.json')).readAsStringSync()) as Map<String, dynamic>;

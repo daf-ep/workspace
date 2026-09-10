@@ -38,21 +38,21 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
-import 'package:cli/src/rules/database.dart';
+import 'package:cli/src/rules/store.dart';
 import 'package:cli/src/rules/update_check.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
   late Directory directory;
-  late String databasePath;
+  late Directory rulesStoreRoot;
   late Directory projectRoot;
   late HttpServer server;
   late Uri fixtureSource;
 
   setUp(() async {
     directory = Directory.systemTemp.createTempSync('dpw_update_check_');
-    databasePath = p.join(directory.path, 'rules.sqlite3');
+    rulesStoreRoot = Directory(p.join(directory.path, 'rules_store'));
     projectRoot = Directory(p.join(directory.path, 'project'))..createSync();
 
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -74,22 +74,22 @@ void main() {
   });
 
   test('is not due when the interval since the last check has not passed', () async {
-    await recordRemoteCheckAt(databasePath: databasePath, time: DateTime.now());
+    recordCheckedAt(storeRoot: rulesStoreRoot, time: DateTime.now());
 
     final updated = await maybeCheckForRemoteUpdates(
-      rulesDatabasePath: databasePath,
+      rulesStoreRoot: rulesStoreRoot,
       projectRoot: projectRoot,
       interval: const Duration(days: 1),
       remoteSource: fixtureSource,
     );
 
     expect(updated, isFalse);
-    expect(await readRule(databasePath: databasePath, name: 'rules', type: 'rules'), isNull);
+    expect(readRule(storeRoot: rulesStoreRoot, name: 'rules', type: 'rules'), isNull);
   });
 
-  test('a database that was never checked is due under the ordinary interval', () async {
+  test('a store that was never checked is due under the ordinary interval', () async {
     final updated = await maybeCheckForRemoteUpdates(
-      rulesDatabasePath: databasePath,
+      rulesStoreRoot: rulesStoreRoot,
       projectRoot: projectRoot,
       interval: const Duration(days: 1),
       remoteSource: fixtureSource,
@@ -98,9 +98,9 @@ void main() {
     expect(updated, isTrue);
   });
 
-  test('an interval longer than the time since the epoch suppresses even a never-checked database', () async {
+  test('an interval longer than the time since the epoch suppresses even a never-checked store', () async {
     final updated = await maybeCheckForRemoteUpdates(
-      rulesDatabasePath: databasePath,
+      rulesStoreRoot: rulesStoreRoot,
       projectRoot: projectRoot,
       interval: const Duration(days: 365 * 100),
       remoteSource: fixtureSource,
@@ -109,16 +109,16 @@ void main() {
     expect(updated, isFalse);
   });
 
-  test('applies the fetched global content into the shared database', () async {
+  test('applies the fetched global content into the shared store', () async {
     await maybeCheckForRemoteUpdates(
-      rulesDatabasePath: databasePath,
+      rulesStoreRoot: rulesStoreRoot,
       projectRoot: projectRoot,
       interval: Duration.zero,
       remoteSource: fixtureSource,
     );
 
-    expect(await readRule(databasePath: databasePath, name: 'rules', type: 'rules'), 'fixture root rule');
-    expect(await readRule(databasePath: databasePath, name: 'code', type: 'common'), 'fixture code rule');
+    expect(readRule(storeRoot: rulesStoreRoot, name: 'rules', type: 'rules'), 'fixture root rule');
+    expect(readRule(storeRoot: rulesStoreRoot, name: 'code', type: 'common'), 'fixture code rule');
   });
 
   test('adds the fetched project content, without overwriting a file the project already wrote', () async {
@@ -126,7 +126,7 @@ void main() {
     File(p.join(dpwDir.path, 'push.md')).writeAsStringSync('a project wrote this already');
 
     await maybeCheckForRemoteUpdates(
-      rulesDatabasePath: databasePath,
+      rulesStoreRoot: rulesStoreRoot,
       projectRoot: projectRoot,
       interval: Duration.zero,
       remoteSource: fixtureSource,
@@ -137,14 +137,14 @@ void main() {
 
   test('records the check even when the remote could not be reached', () async {
     final updated = await maybeCheckForRemoteUpdates(
-      rulesDatabasePath: databasePath,
+      rulesStoreRoot: rulesStoreRoot,
       projectRoot: projectRoot,
       interval: Duration.zero,
       remoteSource: Uri.https('codeload.invalid.example.test', '/daf-ep/workspace/tar.gz/refs/heads/main'),
     );
 
     expect(updated, isFalse);
-    expect(await lastRemoteCheckAt(databasePath: databasePath), isNotNull);
+    expect(lastCheckedAt(storeRoot: rulesStoreRoot), isNotNull);
   });
 }
 

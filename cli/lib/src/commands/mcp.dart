@@ -41,7 +41,7 @@ import 'package:dart_mcp/stdio.dart';
 
 import '../decisions.dart';
 import '../globals.dart' as globals;
-import '../rules/database.dart';
+import '../rules/store.dart';
 import '../runner/dpw_command.dart';
 
 /// Runs the MCP server Claude Code talks to over stdio.
@@ -146,7 +146,7 @@ base class DpwServer extends MCPServer with ToolsSupport {
     final args = request.arguments!;
     final name = args['name'] as String;
     final type = args['type'] as String;
-    final content = await readRule(databasePath: globals.rulesDatabasePath, name: name, type: type);
+    final content = readRule(storeRoot: globals.rulesStoreRoot, name: name, type: type);
     if (content == null) {
       return CallToolResult(
         isError: true,
@@ -157,7 +157,7 @@ base class DpwServer extends MCPServer with ToolsSupport {
   }
 
   Future<CallToolResult> _listRules(CallToolRequest request) async {
-    final rules = await listRules(databasePath: globals.rulesDatabasePath);
+    final rules = listRules(storeRoot: globals.rulesStoreRoot);
     final lines = rules.map((rule) => '${rule.type}/${rule.name}');
     return CallToolResult(content: [TextContent(text: lines.join('\n'))]);
   }

@@ -40,7 +40,7 @@ import 'package:cli/src/base/context.dart';
 import 'package:cli/src/base/logger.dart';
 import 'package:cli/src/commands/init.dart';
 import 'package:cli/src/globals.dart';
-import 'package:cli/src/rules/database.dart';
+import 'package:cli/src/rules/store.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -48,10 +48,9 @@ void main() {
   test('logs through the injected logger instead of a real stream', () async {
     final rulesSource = Directory(p.join(Directory.current.path, '..', 'rules'));
     final project = Directory.systemTemp.createTempSync('dpw_init_command_');
-    final rulesDatabaseDir = Directory.systemTemp.createTempSync('dpw_init_command_rules_db_');
-    final rulesDatabasePath = p.join(rulesDatabaseDir.path, 'rules.sqlite3');
+    final rulesStoreRoot = Directory.systemTemp.createTempSync('dpw_init_command_rules_store_');
     addTearDown(() => project.deleteSync(recursive: true));
-    addTearDown(() => rulesDatabaseDir.deleteSync(recursive: true));
+    addTearDown(() => rulesStoreRoot.deleteSync(recursive: true));
 
     final buffer = BufferLogger();
 
@@ -62,7 +61,7 @@ void main() {
         RulesSource: () => RulesSource(rulesSource),
         ProjectRoot: () => ProjectRoot(project),
         GitProjectId: () => const GitProjectId('github.com/dpw-tests/init-command-test'),
-        RulesDatabasePath: () => RulesDatabasePath(rulesDatabasePath),
+        RulesStoreRoot: () => RulesStoreRoot(rulesStoreRoot),
         RemoteUpdateCheckInterval: () => const RemoteUpdateCheckInterval(Duration(days: 365 * 100)),
       },
     );
@@ -73,7 +72,7 @@ void main() {
     expect(buffer.statusText, contains('shared rules synced into'));
     expect(buffer.statusText, contains('customization stubs ensured'));
     expect(buffer.statusText, contains('declared the mcp server'));
-    expect(await readRule(databasePath: rulesDatabasePath, name: 'rules', type: 'rules'), isNotNull);
+    expect(readRule(storeRoot: rulesStoreRoot, name: 'rules', type: 'rules'), isNotNull);
     expect(File(p.join(project.path, '.claude', 'dpw', 'push.md')).existsSync(), isTrue);
     expect(File(p.join(project.path, '.mcp.json')).existsSync(), isTrue);
   });

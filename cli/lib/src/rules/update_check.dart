@@ -38,13 +38,13 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'database.dart';
 import 'remote.dart';
+import 'store.dart';
 import 'sync.dart';
 
 /// Checks the public corpus for updates when [interval] has passed since the
-/// last check, refreshing the shared database and [projectRoot]'s
-/// `.claude/dpw/` when it finds any. A database that has never been checked
+/// last check, refreshing the shared store and [projectRoot]'s
+/// `.claude/dpw/` when it finds any. A store that has never been checked
 /// counts as checked at the epoch, so it is always due.
 ///
 /// Silent by design. Offline, or a check that is not due yet, are the
@@ -60,22 +60,21 @@ import 'sync.dart';
 /// [remoteSource] overrides where the corpus is fetched from; a test uses it
 /// to point at a fixture server instead of the public corpus.
 Future<bool> maybeCheckForRemoteUpdates({
-  required String rulesDatabasePath,
+  required Directory rulesStoreRoot,
   required Directory projectRoot,
   required Duration interval,
   Uri? remoteSource,
 }) async {
-  final lastChecked =
-      await lastRemoteCheckAt(databasePath: rulesDatabasePath) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  final lastChecked = lastCheckedAt(storeRoot: rulesStoreRoot) ?? DateTime.fromMillisecondsSinceEpoch(0);
   final now = DateTime.now();
   if (now.difference(lastChecked) < interval) return false;
 
-  await recordRemoteCheckAt(databasePath: rulesDatabasePath, time: now);
+  recordCheckedAt(storeRoot: rulesStoreRoot, time: now);
 
   final remote = await fetchRemoteCorpus(source: remoteSource);
   if (remote == null) return false;
 
-  await syncRulesDatabase(databasePath: rulesDatabasePath, contents: remote.global);
+  replaceGlobalContent(storeRoot: rulesStoreRoot, contents: remote.global);
   syncProjectFiles(contents: remote.project, destination: Directory(p.join(projectRoot.path, '.claude', 'dpw')));
   return true;
 }

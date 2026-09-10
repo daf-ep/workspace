@@ -63,7 +63,7 @@ Directory? findRulesSource() {
 /// Reads every file under `global/` in [rulesSource], keyed by its path
 /// relative to `global/`, forward-slash separated.
 ///
-/// This is what a sync writes into the shared rules database: the corpus
+/// This is what a sync writes into the shared rules store: the corpus
 /// content every project reads the same copy of.
 Map<String, String> collectRuleContents(Directory rulesSource) {
   final global = Directory(p.join(rulesSource.path, 'global'));

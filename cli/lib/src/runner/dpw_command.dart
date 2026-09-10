@@ -96,7 +96,7 @@ abstract class DpwCommand extends Command<int> {
   Future<void> _checkForRemoteUpdates() async {
     try {
       final updated = await maybeCheckForRemoteUpdates(
-        rulesDatabasePath: globals.rulesDatabasePath,
+        rulesStoreRoot: globals.rulesStoreRoot,
         projectRoot: globals.projectRoot,
         interval: globals.remoteUpdateCheckInterval,
       );
