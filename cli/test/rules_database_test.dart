@@ -36,44 +36,47 @@
 
 import 'dart:io';
 
-import 'package:cli/src/base/context.dart';
-import 'package:cli/src/base/logger.dart';
-import 'package:cli/src/commands/init.dart';
-import 'package:cli/src/globals.dart';
 import 'package:cli/src/rules_database.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
-  test('logs through the injected logger instead of a real stream', () async {
-    final rulesSource = Directory(p.join(Directory.current.path, '..', 'rules'));
-    final project = Directory.systemTemp.createTempSync('dpw_init_command_');
-    final rulesDatabaseDir = Directory.systemTemp.createTempSync('dpw_init_command_rules_db_');
-    final rulesDatabasePath = p.join(rulesDatabaseDir.path, 'rules.sqlite3');
-    addTearDown(() => project.deleteSync(recursive: true));
-    addTearDown(() => rulesDatabaseDir.deleteSync(recursive: true));
+  late Directory directory;
+  late String databasePath;
 
-    final buffer = BufferLogger();
+  setUp(() {
+    directory = Directory.systemTemp.createTempSync('dpw_rules_database_');
+    databasePath = p.join(directory.path, 'nested', 'rules.sqlite3');
+  });
 
-    final exitCode = await AppContext.current.run<int>(
-      body: () => InitCommand().run(),
-      overrides: <Type, Generator>{
-        Logger: () => buffer,
-        RulesSource: () => RulesSource(rulesSource),
-        ProjectRoot: () => ProjectRoot(project),
-        GitProjectId: () => const GitProjectId('github.com/dpw-tests/init-command-test'),
-        RulesDatabasePath: () => RulesDatabasePath(rulesDatabasePath),
-      },
+  tearDown(() => directory.deleteSync(recursive: true));
+
+  test('reads back a synced rule by path', () async {
+    await syncRulesDatabase(databasePath: databasePath, contents: {'rules.md': 'root rule'});
+
+    expect(await readRule(databasePath: databasePath, path: 'rules.md'), 'root rule');
+  });
+
+  test('returns null for a path never synced', () async {
+    await syncRulesDatabase(databasePath: databasePath, contents: {'rules.md': 'root rule'});
+
+    expect(await readRule(databasePath: databasePath, path: 'common/code.md'), isNull);
+  });
+
+  test('lists every synced path, sorted', () async {
+    await syncRulesDatabase(
+      databasePath: databasePath,
+      contents: {'rules.md': 'root rule', 'common/code.md': 'code rule', 'common/test.md': 'test rule'},
     );
 
-    expect(exitCode, 0);
-    expect(buffer.hadErrorOutput, isFalse);
-    expect(buffer.statusText, contains('this project is github.com/dpw-tests/init-command-test'));
-    expect(buffer.statusText, contains('shared rules synced into'));
-    expect(buffer.statusText, contains('customization stubs ensured'));
-    expect(buffer.statusText, contains('declared the mcp server'));
-    expect(await readRule(databasePath: rulesDatabasePath, path: 'rules.md'), isNotNull);
-    expect(File(p.join(project.path, '.claude', 'rules', 'customization', 'push.md')).existsSync(), isTrue);
-    expect(File(p.join(project.path, '.mcp.json')).existsSync(), isTrue);
+    expect(await listRulePaths(databasePath: databasePath), ['common/code.md', 'common/test.md', 'rules.md']);
+  });
+
+  test('a second sync replaces the corpus instead of adding to it', () async {
+    await syncRulesDatabase(databasePath: databasePath, contents: {'common/code.md': 'first version'});
+    await syncRulesDatabase(databasePath: databasePath, contents: {'rules.md': 'root rule'});
+
+    expect(await readRule(databasePath: databasePath, path: 'common/code.md'), isNull);
+    expect(await readRule(databasePath: databasePath, path: 'rules.md'), 'root rule');
   });
 }

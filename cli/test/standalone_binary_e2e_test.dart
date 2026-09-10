@@ -37,6 +37,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cli/src/rules_database.dart';
 import 'package:dart_mcp/client.dart';
 import 'package:dart_mcp/stdio.dart';
 import 'package:path/path.dart' as p;
@@ -84,11 +85,19 @@ void main() {
   tearDown(() => project.deleteSync(recursive: true));
 
   test('finds its own rules once compiled, without a source checkout nearby', () async {
-    final result = await Process.run(executablePath, ['init'], workingDirectory: project.path);
+    final rulesDatabasePath = p.join(project.path, 'rules.sqlite3');
+
+    final result = await Process.run(
+      executablePath,
+      ['init'],
+      workingDirectory: project.path,
+      environment: {'DPW_RULES_DATABASE': rulesDatabasePath},
+    );
 
     expect(result.exitCode, 0, reason: result.stderr.toString());
     expect(result.stdout, contains('this project is github.com/dpw-tests/standalone-e2e'));
-    expect(File(p.join(project.path, '.claude', 'rules', 'rules.md')).existsSync(), isTrue);
+    expect(await readRule(databasePath: rulesDatabasePath, path: 'rules.md'), isNotNull);
+    expect(File(p.join(project.path, '.claude', 'rules', 'customization', 'push.md')).existsSync(), isTrue);
   });
 
   test('the bundled native sqlite3 library loads and records a decision', () async {

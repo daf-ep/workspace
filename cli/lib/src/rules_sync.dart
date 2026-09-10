@@ -60,52 +60,36 @@ Directory? findRulesSource() {
   return rules.existsSync() ? rules : null;
 }
 
-/// Syncs [source] into [destination].
+/// Reads every rule file under [source] except `customization`, keyed by
+/// its path relative to [source], forward-slash separated.
 ///
-/// Every top-level entry gets replaced, except `customization`, whose files
-/// only get added when missing: a project's own customizations never get
-/// overwritten by a later sync.
-void syncRules({required Directory source, required Directory destination}) {
+/// This is what a sync writes into the shared rules database: the corpus
+/// content every project reads the same copy of, `customization` excluded
+/// because it is the one part of the corpus that is not shared.
+Map<String, String> collectRuleContents(Directory source) {
+  final contents = <String, String>{};
+  for (final entity in source.listSync(recursive: true).whereType<File>()) {
+    final relative = p.relative(entity.path, from: source.path);
+    if (p.split(relative).first == 'customization') continue;
+    contents[p.split(relative).join('/')] = entity.readAsStringSync();
+  }
+  return contents;
+}
+
+/// Ensures every file under `source/customization` exists under
+/// [destination], without ever overwriting one already there.
+///
+/// A project's own customizations are never touched by a later sync: this
+/// only adds a file the corpus ships when the project has no version of its
+/// own yet.
+void syncCustomization({required Directory source, required Directory destination}) {
+  if (!source.existsSync()) return;
   destination.createSync(recursive: true);
 
-  for (final entry in source.listSync()) {
-    final name = p.basename(entry.path);
-    if (name == 'customization') continue;
-    final targetPath = p.join(destination.path, name);
-    _removeIfExists(targetPath);
-    _copyPath(entry, targetPath);
-  }
-
-  final customizationSource = Directory(p.join(source.path, 'customization'));
-  if (!customizationSource.existsSync()) return;
-
-  final customizationDest = Directory(p.join(destination.path, 'customization'))..createSync(recursive: true);
-
-  for (final file in customizationSource.listSync().whereType<File>()) {
-    final destPath = p.join(customizationDest.path, p.basename(file.path));
+  for (final file in source.listSync().whereType<File>()) {
+    final destPath = p.join(destination.path, p.basename(file.path));
     if (!File(destPath).existsSync()) {
       file.copySync(destPath);
     }
-  }
-}
-
-void _removeIfExists(String path) {
-  final type = FileSystemEntity.typeSync(path);
-  if (type == FileSystemEntityType.notFound) return;
-  if (type == FileSystemEntityType.directory) {
-    Directory(path).deleteSync(recursive: true);
-  } else {
-    File(path).deleteSync();
-  }
-}
-
-void _copyPath(FileSystemEntity entity, String destinationPath) {
-  if (entity is Directory) {
-    Directory(destinationPath).createSync(recursive: true);
-    for (final child in entity.listSync()) {
-      _copyPath(child, p.join(destinationPath, p.basename(child.path)));
-    }
-  } else if (entity is File) {
-    entity.copySync(destinationPath);
   }
 }

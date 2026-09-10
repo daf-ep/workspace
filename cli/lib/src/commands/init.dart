@@ -41,17 +41,19 @@ import 'package:path/path.dart' as p;
 import '../base/common.dart';
 import '../globals.dart' as globals;
 import '../mcp_config.dart';
+import '../rules_database.dart';
 import '../rules_sync.dart';
 import '../runner/dpw_command.dart';
 
-/// Creates `.claude/rules` in the current directory and declares dpw's MCP
-/// server in `.mcp.json`.
+/// Syncs the shared rules database from this checkout, ensures this
+/// project's customization stubs exist, and declares dpw's MCP server in
+/// `.mcp.json`.
 class InitCommand extends DpwCommand {
   @override
   final name = 'init';
 
   @override
-  final description = 'Sync .claude/rules from this checkout and declare the mcp server.';
+  final description = 'Sync the shared rules database from this checkout and declare the mcp server.';
 
   @override
   Future<DpwCommandResult> runCommand() async {
@@ -63,9 +65,12 @@ class InitCommand extends DpwCommand {
       throwToolExit('dpw: no rules directory found next to this tool');
     }
 
-    final rulesDest = Directory(p.join(cwd.path, '.claude', 'rules'));
-    syncRules(source: rulesSource, destination: rulesDest);
-    globals.logger.printStatus('dpw: rules synced into ${rulesDest.path}');
+    await syncRulesDatabase(databasePath: globals.rulesDatabasePath, contents: collectRuleContents(rulesSource));
+    globals.logger.printStatus('dpw: shared rules synced into ${globals.rulesDatabasePath}');
+
+    final customizationDest = Directory(p.join(cwd.path, '.claude', 'rules', 'customization'));
+    syncCustomization(source: Directory(p.join(rulesSource.path, 'customization')), destination: customizationDest);
+    globals.logger.printStatus('dpw: customization stubs ensured in ${customizationDest.path}');
 
     ensureMcpServerDeclared(cwd);
     globals.logger.printStatus('dpw: declared the mcp server in .mcp.json');

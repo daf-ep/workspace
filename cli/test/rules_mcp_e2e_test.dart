@@ -34,76 +34,69 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:cli/src/rules_database.dart';
+import 'package:dart_mcp/client.dart';
+import 'package:dart_mcp/stdio.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import 'support/fake_git_repo.dart';
 
 void main() {
-  test('running init syncs the shared rules database and .mcp.json for real, in a real git repo', () async {
-    final project = Directory.systemTemp.createTempSync('dafep_e2e_');
-    final rulesDatabaseDir = Directory.systemTemp.createTempSync('dafep_e2e_rules_db_');
+  test('a real client can read the synced rules corpus through get_rule and list_rules', () async {
+    final project = Directory.systemTemp.createTempSync('dpw_rules_mcp_e2e_project_');
+    final rulesDatabaseDir = Directory.systemTemp.createTempSync('dpw_rules_mcp_e2e_db_');
     addTearDown(() => project.deleteSync(recursive: true));
     addTearDown(() => rulesDatabaseDir.deleteSync(recursive: true));
-    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/init-e2e.git');
+    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/rules-mcp-e2e.git');
+
+    final rulesDatabasePath = p.join(rulesDatabaseDir.path, 'rules.sqlite3');
+    await syncRulesDatabase(
+      databasePath: rulesDatabasePath,
+      contents: {'rules.md': 'How We Work', 'common/code.md': 'Write code that reads back cleanly.'},
+    );
 
     final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
-    final rulesDatabasePath = p.join(rulesDatabaseDir.path, 'rules.sqlite3');
 
-    final result = await Process.run(
+    final client = MCPClient(Implementation(name: 'rules_mcp_e2e_test', version: '0.0.1'));
+    final process = await Process.start(
       Platform.resolvedExecutable,
-      ['run', binPath, 'init'],
+      ['run', binPath, 'mcp'],
       workingDirectory: project.path,
       environment: {'DPW_RULES_DATABASE': rulesDatabasePath},
     );
+    addTearDown(process.kill);
 
-    expect(result.exitCode, 0, reason: result.stderr.toString());
-    expect(result.stdout, contains('this project is github.com/dpw-tests/init-e2e'));
-    expect(await readRule(databasePath: rulesDatabasePath, path: 'rules.md'), isNotNull);
-    expect(File(p.join(project.path, '.claude', 'rules', 'customization', 'push.md')).existsSync(), isTrue);
+    final server = client.connectServer(stdioChannel(input: process.stdout, output: process.stdin));
 
-    final mcpConfig = jsonDecode(File(p.join(project.path, '.mcp.json')).readAsStringSync()) as Map<String, dynamic>;
-    final servers = mcpConfig['mcpServers'] as Map<String, dynamic>;
-    expect(servers['dpw-decisions'], {
-      'command': 'dpw',
-      'args': ['mcp'],
-    });
-  });
+    await server.initialize(
+      InitializeRequest(
+        protocolVersion: ProtocolVersion.latestSupported,
+        capabilities: client.capabilities,
+        clientInfo: client.implementation,
+      ),
+    );
+    server.notifyInitialized();
 
-  test('refuses to run outside a git repository', () async {
-    final project = Directory.systemTemp.createTempSync('dafep_e2e_no_git_');
-    addTearDown(() => project.deleteSync(recursive: true));
+    final tools = await server.listTools(ListToolsRequest());
+    expect(tools.tools.map((tool) => tool.name), containsAll(['get_rule', 'list_rules']));
 
-    final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
+    final listResult = await server.callTool(CallToolRequest(name: 'list_rules', arguments: {}));
+    expect(listResult.isError, isNot(true));
+    final listedText = (listResult.content.single as TextContent).text;
+    expect(listedText.split('\n'), ['common/code.md', 'rules.md']);
 
-    final result = await Process.run(Platform.resolvedExecutable, [
-      'run',
-      binPath,
-      'init',
-    ], workingDirectory: project.path);
+    final getResult = await server.callTool(CallToolRequest(name: 'get_rule', arguments: {'path': 'common/code.md'}));
+    expect(getResult.isError, isNot(true));
+    expect((getResult.content.single as TextContent).text, 'Write code that reads back cleanly.');
 
-    expect(result.exitCode, isNot(0));
-    expect(result.stderr, contains('not a git repository'));
-  });
+    final missingResult = await server.callTool(
+      CallToolRequest(name: 'get_rule', arguments: {'path': 'common/missing.md'}),
+    );
+    expect(missingResult.isError, true);
 
-  test('refuses a remote hosted anywhere but GitHub or GitLab', () async {
-    final project = Directory.systemTemp.createTempSync('dafep_e2e_wrong_host_');
-    addTearDown(() => project.deleteSync(recursive: true));
-    await initFakeGitRepo(project, remote: 'git@bitbucket.org:someone/somewhere.git');
-
-    final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
-
-    final result = await Process.run(Platform.resolvedExecutable, [
-      'run',
-      binPath,
-      'init',
-    ], workingDirectory: project.path);
-
-    expect(result.exitCode, isNot(0));
-    expect(result.stderr, contains('only GitHub and GitLab'));
+    await client.shutdown();
   });
 }

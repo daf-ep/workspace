@@ -43,7 +43,7 @@ SCAN_LINES=60
 
 COPYRIGHT="Copyright (C) 2026 Fiber"
 LICENSE_NAME="Mozilla Public License"
-GENERATED="auto-generated|@generated|DO NOT EDIT|generated file - do not edit"
+GENERATED="auto-generated|@generated|DO NOT EDIT|generated file - do not edit|DO NOT MODIFY BY HAND"
 
 find_arguments=()
 for extension in $EXTENSIONS; do

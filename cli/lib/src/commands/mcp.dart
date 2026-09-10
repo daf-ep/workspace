@@ -41,6 +41,7 @@ import 'package:dart_mcp/stdio.dart';
 
 import '../decisions.dart';
 import '../globals.dart' as globals;
+import '../rules_database.dart';
 import '../runner/dpw_command.dart';
 
 /// Runs the MCP server Claude Code talks to over stdio.
@@ -53,12 +54,12 @@ class McpCommand extends DpwCommand {
   final name = 'mcp';
 
   @override
-  final description = "Runs the MCP server Claude Code talks to, recording decisions as it's told about them.";
+  final description = 'Runs the MCP server Claude Code talks to, for reading the rules corpus and recording decisions.';
 
   @override
   Future<DpwCommandResult> runCommand() async {
     final projectId = await globals.projectId;
-    DecisionServer(
+    DpwServer(
       stdioChannel(input: stdin, output: stdout),
       projectId: projectId,
     );
@@ -67,24 +68,52 @@ class McpCommand extends DpwCommand {
   }
 }
 
-/// The MCP server exposing `record_decision` to whatever client connects.
-base class DecisionServer extends MCPServer with ToolsSupport {
-  /// Serves [channel], recording every decision under [projectId].
-  DecisionServer(super.channel, {required this.projectId})
+/// The MCP server exposing `get_rule`, `list_rules` and `record_decision` to
+/// whatever client connects.
+base class DpwServer extends MCPServer with ToolsSupport {
+  /// Serves [channel], reading the rules corpus and recording decisions
+  /// under [projectId].
+  DpwServer(super.channel, {required this.projectId})
     : super.fromStreamChannel(
         implementation: Implementation(name: 'dpw', version: '1.0.0'),
         instructions:
-            'Call record_decision whenever you make a decision worth capturing: a '
-            'choice made against at least one other option, with a verifiable '
-            'reason and a consequence for whoever touches this path next. Do not '
-            'call it for a plain rename, a rewrite in the same shape, or a '
-            'dependency bump with no trade-off attached.',
+            'Before writing any code, call get_rule with path "rules.md": it '
+            'says how to write here, and names the rest of the corpus by '
+            'relative path. Fetch any path it names the same way, through '
+            'get_rule again. Call list_rules if a path does not resolve.\n\n'
+            'Call record_decision whenever you make a decision worth '
+            'capturing: a choice made against at least one other option, '
+            'with a verifiable reason and a consequence for whoever touches '
+            'this path next. Do not call it for a plain rename, a rewrite in '
+            'the same shape, or a dependency bump with no trade-off attached.',
       ) {
+    registerTool(getRuleTool, _getRule);
+    registerTool(listRulesTool, _listRules);
     registerTool(recordDecisionTool, _recordDecision);
   }
 
   /// The project this server's decisions are recorded under.
   final String projectId;
+
+  /// The tool a client calls to read one file of the rules corpus.
+  final Tool getRuleTool = Tool(
+    name: 'get_rule',
+    description:
+        "Reads one file of this project's rules corpus by path, for example "
+        '"rules.md" or "common/code.md". Call list_rules first when the path '
+        'is not known.',
+    inputSchema: Schema.object(
+      properties: {'path': Schema.string(description: "The file's path, relative to the corpus root.")},
+      required: ['path'],
+    ),
+  );
+
+  /// The tool a client calls to see every path `get_rule` can read.
+  final Tool listRulesTool = Tool(
+    name: 'list_rules',
+    description: 'Lists every path get_rule can read from the rules corpus.',
+    inputSchema: Schema.object(properties: {}),
+  );
 
   /// The tool a client calls to record one decision.
   final Tool recordDecisionTool = Tool(
@@ -102,6 +131,23 @@ base class DecisionServer extends MCPServer with ToolsSupport {
       required: ['decided', 'why', 'implies', 'verified'],
     ),
   );
+
+  Future<CallToolResult> _getRule(CallToolRequest request) async {
+    final path = request.arguments!['path'] as String;
+    final content = await readRule(databasePath: globals.rulesDatabasePath, path: path);
+    if (content == null) {
+      return CallToolResult(
+        isError: true,
+        content: [TextContent(text: 'No rule at path "$path". Call list_rules to see what exists.')],
+      );
+    }
+    return CallToolResult(content: [TextContent(text: content)]);
+  }
+
+  Future<CallToolResult> _listRules(CallToolRequest request) async {
+    final paths = await listRulePaths(databasePath: globals.rulesDatabasePath);
+    return CallToolResult(content: [TextContent(text: paths.join('\n'))]);
+  }
 
   Future<CallToolResult> _recordDecision(CallToolRequest request) async {
     final args = request.arguments!;
