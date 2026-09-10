@@ -36,27 +36,47 @@
 
 import 'dart:io';
 
+import 'package:cli/src/gitignore.dart';
 import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
 
-Future<void> initFakeGitRepo(
-  Directory directory, {
-  String remote = 'https://github.com/dpw-tests/fake-repo.git',
-}) async {
-  await _git(directory, ['init', '--quiet']);
-  await _git(directory, ['remote', 'add', 'origin', remote]);
-}
+void main() {
+  late Directory project;
+  late File file;
 
-/// Creates a real, empty bare repository under [parent], usable as a local
-/// `origin` a test can actually push to and fetch from, without any network.
-Future<Directory> createBareRemote(Directory parent) async {
-  final bare = Directory(p.join(parent.path, 'origin.git'))..createSync(recursive: true);
-  await _git(bare, ['init', '--bare', '--quiet']);
-  return bare;
-}
+  setUp(() {
+    project = Directory.systemTemp.createTempSync('dpw_gitignore_');
+    file = File(p.join(project.path, '.gitignore'));
+  });
 
-Future<void> _git(Directory directory, List<String> arguments) async {
-  final result = await Process.run('git', arguments, workingDirectory: directory.path);
-  if (result.exitCode != 0) {
-    throw StateError('git ${arguments.join(' ')} failed:\n${result.stdout}\n${result.stderr}');
-  }
+  tearDown(() => project.deleteSync(recursive: true));
+
+  test('creates .gitignore with the pattern when none exists', () {
+    ensureGitignored(project, '.claude/context');
+
+    expect(file.readAsStringSync(), '.claude/context\n');
+  });
+
+  test('appends the pattern to an existing .gitignore that lacks a trailing newline', () {
+    file.writeAsStringSync('node_modules/');
+
+    ensureGitignored(project, '.claude/context');
+
+    expect(file.readAsStringSync(), 'node_modules/\n.claude/context\n');
+  });
+
+  test('never adds the pattern twice', () {
+    ensureGitignored(project, '.claude/context');
+    ensureGitignored(project, '.claude/context');
+
+    expect(file.readAsStringSync(), '.claude/context\n');
+  });
+
+  test('keeps every other line untouched', () {
+    file.writeAsStringSync('node_modules/\nbuild/\n');
+
+    ensureGitignored(project, '.claude/context');
+
+    expect(file.readAsStringSync(), 'node_modules/\nbuild/\n.claude/context\n');
+  });
 }

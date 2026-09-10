@@ -36,27 +36,55 @@
 
 import 'dart:io';
 
+import 'package:cli/src/context/orphan_branch.dart';
 import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
 
-Future<void> initFakeGitRepo(
-  Directory directory, {
-  String remote = 'https://github.com/dpw-tests/fake-repo.git',
-}) async {
-  await _git(directory, ['init', '--quiet']);
-  await _git(directory, ['remote', 'add', 'origin', remote]);
+import '../support/fake_git_repo.dart';
+
+void main() {
+  late Directory workspace;
+  late Directory project;
+  late Directory remote;
+
+  setUp(() async {
+    workspace = Directory.systemTemp.createTempSync('dpw_orphan_branch_');
+    project = Directory(p.join(workspace.path, 'project'))..createSync();
+    remote = await createBareRemote(workspace);
+    await initFakeGitRepo(project, remote: remote.path);
+  });
+
+  tearDown(() => workspace.deleteSync(recursive: true));
+
+  test('creates the branch on origin when it does not exist yet', () async {
+    await ensureOrphanBranch(projectRoot: project, branch: 'dpw-context');
+
+    final tip = await _remoteTip(remote, 'dpw-context');
+    expect(tip, isNotNull);
+  });
+
+  test('the created branch has no parent commit, a true orphan', () async {
+    await ensureOrphanBranch(projectRoot: project, branch: 'dpw-context');
+
+    final tip = await _remoteTip(remote, 'dpw-context');
+    final parents = await Process.run('git', ['-C', remote.path, 'log', '--format=%P', '-1', tip!]);
+
+    expect((parents.stdout as String).trim(), isEmpty);
+  });
+
+  test('does nothing when the branch already exists on origin', () async {
+    await ensureOrphanBranch(projectRoot: project, branch: 'dpw-context');
+    final firstTip = await _remoteTip(remote, 'dpw-context');
+
+    await ensureOrphanBranch(projectRoot: project, branch: 'dpw-context');
+    final secondTip = await _remoteTip(remote, 'dpw-context');
+
+    expect(secondTip, firstTip);
+  });
 }
 
-/// Creates a real, empty bare repository under [parent], usable as a local
-/// `origin` a test can actually push to and fetch from, without any network.
-Future<Directory> createBareRemote(Directory parent) async {
-  final bare = Directory(p.join(parent.path, 'origin.git'))..createSync(recursive: true);
-  await _git(bare, ['init', '--bare', '--quiet']);
-  return bare;
-}
-
-Future<void> _git(Directory directory, List<String> arguments) async {
-  final result = await Process.run('git', arguments, workingDirectory: directory.path);
-  if (result.exitCode != 0) {
-    throw StateError('git ${arguments.join(' ')} failed:\n${result.stdout}\n${result.stderr}');
-  }
+Future<String?> _remoteTip(Directory remote, String branch) async {
+  final result = await Process.run('git', ['-C', remote.path, 'rev-parse', '--verify', '--quiet', branch]);
+  final sha = (result.stdout as String).trim();
+  return sha.isEmpty ? null : sha;
 }

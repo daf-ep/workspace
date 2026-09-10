@@ -36,27 +36,33 @@
 
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
+import 'package:fiber_shell/fiber_shell.dart';
 
-Future<void> initFakeGitRepo(
-  Directory directory, {
-  String remote = 'https://github.com/dpw-tests/fake-repo.git',
-}) async {
-  await _git(directory, ['init', '--quiet']);
-  await _git(directory, ['remote', 'add', 'origin', remote]);
-}
+import '../base/common.dart';
+import 'git_network.dart';
 
-/// Creates a real, empty bare repository under [parent], usable as a local
-/// `origin` a test can actually push to and fetch from, without any network.
-Future<Directory> createBareRemote(Directory parent) async {
-  final bare = Directory(p.join(parent.path, 'origin.git'))..createSync(recursive: true);
-  await _git(bare, ['init', '--bare', '--quiet']);
-  return bare;
-}
+/// The empty tree every git repository already has, by its well-known
+/// object id: hashing zero entries always gives the same sha.
+const String _emptyTreeSha = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
-Future<void> _git(Directory directory, List<String> arguments) async {
-  final result = await Process.run('git', arguments, workingDirectory: directory.path);
-  if (result.exitCode != 0) {
-    throw StateError('git ${arguments.join(' ')} failed:\n${result.stdout}\n${result.stderr}');
-  }
+/// Ensures [branch] exists on `origin`, as an orphan: a root commit with no
+/// parent, so it shares no history with any other branch, the way
+/// `gh-pages` shares none with `main`.
+///
+/// Does nothing when the branch already exists on `origin`, whether this
+/// project or a teammate's created it: two independent orphan roots under
+/// the same name would never share history, so every future push would
+/// fail as a non-fast-forward.
+Future<void> ensureOrphanBranch({required Directory projectRoot, required String branch}) async {
+  if (await remoteBranchTip(projectRoot, branch) != null) return;
+
+  final root = await runGit(
+    Git.repo(projectRoot.path).commitTree().token(_emptyTreeSha).token('-m').token('dpw: start the $branch branch'),
+  );
+  if (root.failed) throwToolExit('dpw: could not create the $branch branch.\n${root.stderr}');
+
+  final pushed = await runGit(
+    Git.repo(projectRoot.path).push().token('origin').token('${root.text.trim()}:refs/heads/$branch'),
+  );
+  if (pushed.failed) throwToolExit('dpw: could not push the $branch branch.\n${pushed.stderr}');
 }

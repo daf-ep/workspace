@@ -36,27 +36,35 @@
 
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
+import 'database.dart';
+import 'push.dart';
 
-Future<void> initFakeGitRepo(
-  Directory directory, {
-  String remote = 'https://github.com/dpw-tests/fake-repo.git',
+/// Pushes the context database at [databasePath] to [branch] when
+/// [interval] has passed since the last push. A database that has never
+/// been pushed counts as pushed at the epoch, so it is always due.
+///
+/// Silent by design, the same way the rules corpus's own update check is:
+/// a push that is not due yet, or that fails, offline or racing a teammate,
+/// is the expected common case, not a failure to report. The last-pushed
+/// time is written whether or not the push succeeds, so a machine offline
+/// for a while pays the attempt at most once per [interval].
+Future<bool> maybePushContext({
+  required Directory projectRoot,
+  required String branch,
+  required String databasePath,
+  required String fileName,
+  required Duration interval,
 }) async {
-  await _git(directory, ['init', '--quiet']);
-  await _git(directory, ['remote', 'add', 'origin', remote]);
-}
+  final last = lastPushedAt(databasePath: databasePath) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  final now = DateTime.now();
+  if (now.difference(last) < interval) return false;
 
-/// Creates a real, empty bare repository under [parent], usable as a local
-/// `origin` a test can actually push to and fetch from, without any network.
-Future<Directory> createBareRemote(Directory parent) async {
-  final bare = Directory(p.join(parent.path, 'origin.git'))..createSync(recursive: true);
-  await _git(bare, ['init', '--bare', '--quiet']);
-  return bare;
-}
+  recordPushedAt(databasePath: databasePath, time: now);
 
-Future<void> _git(Directory directory, List<String> arguments) async {
-  final result = await Process.run('git', arguments, workingDirectory: directory.path);
-  if (result.exitCode != 0) {
-    throw StateError('git ${arguments.join(' ')} failed:\n${result.stdout}\n${result.stderr}');
-  }
+  return pushContextDatabase(
+    projectRoot: projectRoot,
+    branch: branch,
+    databaseFile: File(databasePath),
+    fileName: fileName,
+  );
 }

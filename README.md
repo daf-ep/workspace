@@ -4,7 +4,7 @@
 
 Every team re-litigates the same arguments: what deserves a comment, when a test is worth writing, how a commit should read, what "good" even means before you hit push. This repo settles all of it, once, for good, and carries the answer with you from job to job instead of leaving it behind with the last company.
 
-`dafep` is a single command. Run it in any project and it wires an MCP server into that project, ready for an AI coding agent to read the full set of engineering rules from the first line.
+`dafep` is a single command. Run it in any project and it wires an MCP server into that project, ready for an AI coding agent to read the full set of engineering rules from the first line, and starts capturing every session's conversation on its own branch, isolated from your code.
 
 ## Install
 
@@ -56,6 +56,6 @@ None of it names a language, a company, or a tool. A `.claude/dpw/` layer lets a
 
 ## Why it's public
 
-Read it, fork it, run it. `dpw` never touches your project outside `.claude/` and `.mcp.json`, and everything else it writes lives under `$HOME/.local/share/dpw/`, so trying it costs nothing and leaves nothing behind in the project itself.
+Read it, fork it, run it. Everything `dpw` touches in your project is `.claude/`, `.mcp.json`, `.gitignore` and its own `dpw-context` branch, never your code and never `main`, and everything it keeps for itself on the machine lives under `$HOME/.local/share/dpw/`.
 
 Licensed under the Mozilla Public License 2.0.

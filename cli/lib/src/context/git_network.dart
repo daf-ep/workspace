@@ -34,29 +34,41 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import 'dart:async';
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
+import 'package:fiber_shell/fiber_shell.dart';
 
-Future<void> initFakeGitRepo(
-  Directory directory, {
-  String remote = 'https://github.com/dpw-tests/fake-repo.git',
-}) async {
-  await _git(directory, ['init', '--quiet']);
-  await _git(directory, ['remote', 'add', 'origin', remote]);
-}
+/// How long a git command that reaches out to `origin` gets before it counts
+/// as unreachable.
+///
+/// A `dpw hook` call runs synchronously inside a Claude Code hook, which has
+/// its own timeout: a push that hangs on a bad connection would otherwise
+/// cost the caller its entire budget instead of failing cleanly within this
+/// one, smaller than any hook's.
+const Duration _networkTimeout = Duration(seconds: 10);
 
-/// Creates a real, empty bare repository under [parent], usable as a local
-/// `origin` a test can actually push to and fetch from, without any network.
-Future<Directory> createBareRemote(Directory parent) async {
-  final bare = Directory(p.join(parent.path, 'origin.git'))..createSync(recursive: true);
-  await _git(bare, ['init', '--bare', '--quiet']);
-  return bare;
-}
-
-Future<void> _git(Directory directory, List<String> arguments) async {
-  final result = await Process.run('git', arguments, workingDirectory: directory.path);
-  if (result.exitCode != 0) {
-    throw StateError('git ${arguments.join(' ')} failed:\n${result.stdout}\n${result.stderr}');
+/// Runs [command], the way [GitCmd.output] does, except a call that reaches
+/// `origin` and does not answer within [_networkTimeout] counts as failed
+/// rather than left hanging.
+Future<ShellResult> runGit(GitCmd command, {String? input}) async {
+  try {
+    return await command.output(input: input).timeout(_networkTimeout);
+  } on TimeoutException {
+    return ShellResult(
+      command: command.line,
+      exitCode: 1,
+      bytes: const [],
+      errorBytes: const [],
+      duration: _networkTimeout,
+    );
   }
+}
+
+/// The commit [branch] currently points to on `origin`, or null when
+/// `origin` carries no such branch yet, or could not be reached.
+Future<String?> remoteBranchTip(Directory projectRoot, String branch) async {
+  final result = await runGit(Git.repo(projectRoot.path).lsRemote().token('origin').token('refs/heads/$branch'));
+  if (result.failed || result.text.trim().isEmpty) return null;
+  return result.text.trim().split(RegExp(r'\s+')).first;
 }

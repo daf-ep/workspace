@@ -36,27 +36,44 @@
 
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
+import 'package:fiber_shell/fiber_shell.dart';
 
-Future<void> initFakeGitRepo(
-  Directory directory, {
-  String remote = 'https://github.com/dpw-tests/fake-repo.git',
+import 'git_network.dart';
+
+/// Commits [databaseFile] as [fileName] on [branch] and pushes it to
+/// `origin`, without ever touching this project's working tree or index:
+/// every step is a plumbing command building objects directly, the way a
+/// bot deploys to `gh-pages` without checking it out.
+///
+/// Parents the new commit on whatever [branch] currently points to on
+/// `origin`, read fresh right before committing, so a push a teammate made
+/// in between is not clobbered; git itself still refuses the push as a
+/// non-fast-forward on the rare race where both land at the same instant.
+///
+/// Returns whether the push succeeded. Never throws: a failure here, offline
+/// or a losing race, is left for the next attempt rather than reported as an
+/// error.
+Future<bool> pushContextDatabase({
+  required Directory projectRoot,
+  required String branch,
+  required File databaseFile,
+  required String fileName,
 }) async {
-  await _git(directory, ['init', '--quiet']);
-  await _git(directory, ['remote', 'add', 'origin', remote]);
-}
+  if (!databaseFile.existsSync()) return false;
+  final path = projectRoot.path;
 
-/// Creates a real, empty bare repository under [parent], usable as a local
-/// `origin` a test can actually push to and fetch from, without any network.
-Future<Directory> createBareRemote(Directory parent) async {
-  final bare = Directory(p.join(parent.path, 'origin.git'))..createSync(recursive: true);
-  await _git(bare, ['init', '--bare', '--quiet']);
-  return bare;
-}
+  final blob = await Git.repo(path).hashObject().token('-w').token(databaseFile.path).output();
+  if (blob.failed) return false;
 
-Future<void> _git(Directory directory, List<String> arguments) async {
-  final result = await Process.run('git', arguments, workingDirectory: directory.path);
-  if (result.exitCode != 0) {
-    throw StateError('git ${arguments.join(' ')} failed:\n${result.stdout}\n${result.stderr}');
-  }
+  final tree = await Git.repo(path).mktree().output(input: '100644 blob ${blob.text.trim()}\t$fileName\n');
+  if (tree.failed) return false;
+
+  final parent = await remoteBranchTip(projectRoot, branch);
+  final commitCommand = Git.repo(path).commitTree().token(tree.text.trim());
+  if (parent != null) commitCommand.token('-p').token(parent);
+  final commit = await commitCommand.token('-m').token('dpw: context update').output();
+  if (commit.failed) return false;
+
+  final pushed = await runGit(Git.repo(path).push().token('origin').token('${commit.text.trim()}:refs/heads/$branch'));
+  return pushed.success;
 }

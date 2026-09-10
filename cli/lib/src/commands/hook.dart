@@ -34,29 +34,54 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import 'dart:convert';
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
+import '../context/constants.dart';
+import '../context/database.dart';
+import '../context/maybe_push.dart';
+import '../globals.dart' as globals;
+import '../runner/dpw_command.dart';
 
-Future<void> initFakeGitRepo(
-  Directory directory, {
-  String remote = 'https://github.com/dpw-tests/fake-repo.git',
-}) async {
-  await _git(directory, ['init', '--quiet']);
-  await _git(directory, ['remote', 'add', 'origin', remote]);
-}
+/// Records one Claude Code hook's raw stdin payload, and pushes the context
+/// database to its orphan branch when a push is due.
+///
+/// This is what `.claude/settings.json` calls for `SessionStart`,
+/// `UserPromptSubmit` and `Stop`, one event name per registration. Never
+/// fails: a hook Claude Code is waiting on has no use for an error from a
+/// capture mechanism that is not part of what the user asked it to do.
+class HookCommand extends DpwCommand {
+  @override
+  final name = 'hook';
 
-/// Creates a real, empty bare repository under [parent], usable as a local
-/// `origin` a test can actually push to and fetch from, without any network.
-Future<Directory> createBareRemote(Directory parent) async {
-  final bare = Directory(p.join(parent.path, 'origin.git'))..createSync(recursive: true);
-  await _git(bare, ['init', '--bare', '--quiet']);
-  return bare;
-}
+  @override
+  final description = "Records one Claude Code hook event's raw payload, for later processing.";
 
-Future<void> _git(Directory directory, List<String> arguments) async {
-  final result = await Process.run('git', arguments, workingDirectory: directory.path);
-  if (result.exitCode != 0) {
-    throw StateError('git ${arguments.join(' ')} failed:\n${result.stdout}\n${result.stderr}');
+  @override
+  Future<DpwCommandResult> runCommand() async {
+    await _captureAndMaybePush();
+    return const DpwCommandResult.success();
+  }
+
+  Future<void> _captureAndMaybePush() async {
+    try {
+      final arguments = argResults?.rest ?? const <String>[];
+      if (arguments.isEmpty) return;
+      final event = arguments.first;
+
+      final payload = await stdin.transform(utf8.decoder).join();
+      final databasePath = globals.contextDatabasePath;
+      recordRawEvent(databasePath: databasePath, hookEvent: event, payload: payload);
+
+      await maybePushContext(
+        projectRoot: globals.projectRoot,
+        branch: contextBranch,
+        databasePath: databasePath,
+        fileName: contextFileName,
+        interval: globals.contextPushInterval,
+      );
+    } catch (_) {
+      return;
+    }
   }
 }

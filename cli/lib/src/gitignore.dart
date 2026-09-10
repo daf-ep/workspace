@@ -38,25 +38,14 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-Future<void> initFakeGitRepo(
-  Directory directory, {
-  String remote = 'https://github.com/dpw-tests/fake-repo.git',
-}) async {
-  await _git(directory, ['init', '--quiet']);
-  await _git(directory, ['remote', 'add', 'origin', remote]);
-}
+/// Ensures [pattern] is a line in `.gitignore` under [projectRoot], adding
+/// it once, at the end, if it isn't there yet.
+void ensureGitignored(Directory projectRoot, String pattern) {
+  final file = File(p.join(projectRoot.path, '.gitignore'));
+  final content = file.existsSync() ? file.readAsStringSync() : '';
 
-/// Creates a real, empty bare repository under [parent], usable as a local
-/// `origin` a test can actually push to and fetch from, without any network.
-Future<Directory> createBareRemote(Directory parent) async {
-  final bare = Directory(p.join(parent.path, 'origin.git'))..createSync(recursive: true);
-  await _git(bare, ['init', '--bare', '--quiet']);
-  return bare;
-}
+  if (content.split('\n').map((line) => line.trim()).contains(pattern)) return;
 
-Future<void> _git(Directory directory, List<String> arguments) async {
-  final result = await Process.run('git', arguments, workingDirectory: directory.path);
-  if (result.exitCode != 0) {
-    throw StateError('git ${arguments.join(' ')} failed:\n${result.stdout}\n${result.stderr}');
-  }
+  final needsNewline = content.isNotEmpty && !content.endsWith('\n');
+  file.writeAsStringSync('$content${needsNewline ? '\n' : ''}$pattern\n');
 }

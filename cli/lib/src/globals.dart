@@ -174,12 +174,44 @@ class RemoteUpdateCheckInterval {
 Duration get remoteUpdateCheckInterval =>
     (context.get<RemoteUpdateCheckInterval>() ?? RemoteUpdateCheckInterval(_defaultRemoteUpdateCheckInterval)).duration;
 
-Duration get _defaultRemoteUpdateCheckInterval {
-  if (Platform.environment['DPW_UPDATE_CHECK_INTERVAL_SECONDS'] case final String overridden
-      when overridden.isNotEmpty) {
+Duration get _defaultRemoteUpdateCheckInterval =>
+    _durationFromEnv(envVariable: 'DPW_UPDATE_CHECK_INTERVAL_SECONDS', defaultValue: const Duration(days: 1));
+
+/// The path to this project's context database, holding the raw hook
+/// payloads a Claude Code session generates while working here.
+///
+/// Local to the project rather than shared across every project the way
+/// [rulesStoreRoot] and [decisionsDatabasePath] are: it belongs to this
+/// project's own history on [contextBranch], not to this machine.
+String get contextDatabasePath => p.join(projectRoot.path, '.claude', 'context');
+
+/// How long a context push, once made, holds off the next one.
+///
+/// Wrapped rather than looked up through a raw [Duration], so a test
+/// overriding it never risks colliding with an unrelated one a future
+/// override might register.
+class ContextPushInterval {
+  /// Wraps [duration], the answer [contextPushInterval] should give for
+  /// this run.
+  const ContextPushInterval(this.duration);
+
+  /// The interval this run holds a push off for.
+  final Duration duration;
+}
+
+/// How long this run holds a context push off for, five minutes unless
+/// overridden.
+Duration get contextPushInterval =>
+    (context.get<ContextPushInterval>() ?? ContextPushInterval(_defaultContextPushInterval)).duration;
+
+Duration get _defaultContextPushInterval =>
+    _durationFromEnv(envVariable: 'DPW_CONTEXT_PUSH_INTERVAL_SECONDS', defaultValue: const Duration(minutes: 5));
+
+Duration _durationFromEnv({required String envVariable, required Duration defaultValue}) {
+  if (Platform.environment[envVariable] case final String overridden when overridden.isNotEmpty) {
     return Duration(seconds: int.parse(overridden));
   }
-  return const Duration(days: 1);
+  return defaultValue;
 }
 
 String _dpwDataPath({required String envVariable, required String filename}) {

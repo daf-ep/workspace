@@ -64,6 +64,8 @@ void main() {
     expect(result.stdout, contains('this project is github.com/dpw-tests/init-e2e'));
     expect(readRule(storeRoot: rulesStoreRoot, name: 'rules', type: 'rules'), isNotNull);
     expect(File(p.join(project.path, '.claude', 'dpw', 'push.md')).existsSync(), isTrue);
+    expect(File(p.join(project.path, '.gitignore')).readAsStringSync(), contains('.claude/context'));
+    expect(File(p.join(project.path, '.claude', 'settings.json')).existsSync(), isTrue);
 
     final mcpConfig = jsonDecode(File(p.join(project.path, '.mcp.json')).readAsStringSync()) as Map<String, dynamic>;
     final servers = mcpConfig['mcpServers'] as Map<String, dynamic>;

@@ -39,11 +39,15 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../base/common.dart';
+import '../context/constants.dart';
+import '../context/orphan_branch.dart';
+import '../gitignore.dart';
 import '../globals.dart' as globals;
 import '../mcp_config.dart';
 import '../rules/store.dart';
 import '../rules/sync.dart';
 import '../runner/dpw_command.dart';
+import '../settings_config.dart';
 
 /// Syncs the shared rules store from this checkout, ensures this project's
 /// customization stubs exist, and declares dpw's MCP server in `.mcp.json`.
@@ -74,6 +78,17 @@ class InitCommand extends DpwCommand {
 
     ensureMcpServerDeclared(cwd);
     globals.logger.printStatus('dpw: declared the mcp server in .mcp.json');
+
+    ensureGitignored(cwd, '.claude/context');
+    ensureHooksDeclared(cwd);
+    globals.logger.printStatus('dpw: declared the context hooks in .claude/settings.json');
+
+    try {
+      await ensureOrphanBranch(projectRoot: cwd, branch: contextBranch);
+      globals.logger.printStatus('dpw: the $contextBranch branch is ready on origin');
+    } on ToolExit {
+      globals.logger.printStatus('dpw: could not reach origin to prepare $contextBranch, will retry later');
+    }
 
     return const DpwCommandResult.success();
   }

@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cli/src/base/context.dart';
@@ -44,13 +45,19 @@ import 'package:cli/src/rules/store.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../support/fake_git_repo.dart';
+
 void main() {
   test('logs through the injected logger instead of a real stream', () async {
     final rulesSource = Directory(p.join(Directory.current.path, '..', 'rules'));
-    final project = Directory.systemTemp.createTempSync('dpw_init_command_');
+    final workspace = Directory.systemTemp.createTempSync('dpw_init_command_');
+    final project = Directory(p.join(workspace.path, 'project'))..createSync();
     final rulesStoreRoot = Directory.systemTemp.createTempSync('dpw_init_command_rules_store_');
-    addTearDown(() => project.deleteSync(recursive: true));
+    addTearDown(() => workspace.deleteSync(recursive: true));
     addTearDown(() => rulesStoreRoot.deleteSync(recursive: true));
+
+    final remote = await createBareRemote(workspace);
+    await initFakeGitRepo(project, remote: remote.path);
 
     final buffer = BufferLogger();
 
@@ -72,8 +79,19 @@ void main() {
     expect(buffer.statusText, contains('shared rules synced into'));
     expect(buffer.statusText, contains('customization stubs ensured'));
     expect(buffer.statusText, contains('declared the mcp server'));
+    expect(buffer.statusText, contains('declared the context hooks'));
+    expect(buffer.statusText, contains('dpw-context branch is ready on origin'));
     expect(readRule(storeRoot: rulesStoreRoot, name: 'rules', type: 'rules'), isNotNull);
     expect(File(p.join(project.path, '.claude', 'dpw', 'push.md')).existsSync(), isTrue);
     expect(File(p.join(project.path, '.mcp.json')).existsSync(), isTrue);
+
+    expect(File(p.join(project.path, '.gitignore')).readAsStringSync(), contains('.claude/context'));
+
+    final settings =
+        jsonDecode(File(p.join(project.path, '.claude', 'settings.json')).readAsStringSync()) as Map<String, dynamic>;
+    expect((settings['hooks'] as Map<String, dynamic>).keys, containsAll(['SessionStart', 'UserPromptSubmit', 'Stop']));
+
+    final branchTip = await Process.run('git', ['-C', remote.path, 'rev-parse', '--verify', '--quiet', 'dpw-context']);
+    expect((branchTip.stdout as String).trim(), isNotEmpty);
   });
 }
