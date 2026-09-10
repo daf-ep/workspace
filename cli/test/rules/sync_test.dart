@@ -41,51 +41,59 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
-  late Directory source;
+  late Directory rulesSource;
 
   setUp(() {
-    source = Directory.systemTemp.createTempSync('dafep_source_');
+    rulesSource = Directory.systemTemp.createTempSync('dafep_rules_source_');
 
-    File(p.join(source.path, 'rules.md')).writeAsStringSync('root rule');
-    final common = Directory(p.join(source.path, 'common'))..createSync();
+    final global = Directory(p.join(rulesSource.path, 'global'))..createSync();
+    File(p.join(global.path, 'rules.md')).writeAsStringSync('root rule');
+    final common = Directory(p.join(global.path, 'common'))..createSync();
     File(p.join(common.path, 'code.md')).writeAsStringSync('code rule');
-    final customization = Directory(p.join(source.path, 'customization'))..createSync();
-    File(p.join(customization.path, 'push.md')).writeAsStringSync('default customization');
+
+    final project = Directory(p.join(rulesSource.path, 'project'))..createSync();
+    File(p.join(project.path, 'push.md')).writeAsStringSync('default customization');
   });
 
-  tearDown(() => source.deleteSync(recursive: true));
+  tearDown(() => rulesSource.deleteSync(recursive: true));
 
   group('collectRuleContents', () {
-    test('reads every file except customization, keyed by its relative path', () {
-      final contents = collectRuleContents(source);
+    test('reads every file under global/, keyed by its path relative to it', () {
+      final contents = collectRuleContents(rulesSource);
 
       expect(contents, {'rules.md': 'root rule', 'common/code.md': 'code rule'});
     });
 
     test('picks up a file added since the last read', () {
-      File(p.join(source.path, 'rules.md')).writeAsStringSync('updated rule');
+      File(p.join(rulesSource.path, 'global', 'rules.md')).writeAsStringSync('updated rule');
 
-      expect(collectRuleContents(source)['rules.md'], 'updated rule');
+      expect(collectRuleContents(rulesSource)['rules.md'], 'updated rule');
+    });
+
+    test('never reads project/, since it is not shared', () {
+      final contents = collectRuleContents(rulesSource);
+
+      expect(contents.keys, isNot(contains('push.md')));
     });
   });
 
-  group('syncCustomization', () {
+  group('syncProjectFiles', () {
     late Directory destination;
 
     setUp(() => destination = Directory.systemTemp.createTempSync('dafep_dest_'));
     tearDown(() => destination.deleteSync(recursive: true));
 
-    test('adds a customization file the project never wrote', () {
-      syncCustomization(source: Directory(p.join(source.path, 'customization')), destination: destination);
+    test('adds a project file the project never wrote', () {
+      syncProjectFiles(rulesSource: rulesSource, destination: destination);
 
       expect(File(p.join(destination.path, 'push.md')).readAsStringSync(), 'default customization');
     });
 
-    test('never overwrites a customization file the project already wrote', () {
+    test('never overwrites a project file the project already wrote', () {
       destination.createSync(recursive: true);
       File(p.join(destination.path, 'push.md')).writeAsStringSync('a project wrote this already');
 
-      syncCustomization(source: Directory(p.join(source.path, 'customization')), destination: destination);
+      syncProjectFiles(rulesSource: rulesSource, destination: destination);
 
       expect(File(p.join(destination.path, 'push.md')).readAsStringSync(), 'a project wrote this already');
     });

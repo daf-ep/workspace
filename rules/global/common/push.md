@@ -6,7 +6,7 @@ It applies as soon as the request is "push," "commit," "send it." The request co
 
 What justifies everything that follows is that you're working on several subjects at once, so the working directory almost always mixes things that have nothing to do with each other. A commit holds one subject. That's what keeps history readable, `git revert` usable, and `git bisect` able to point at a culprit.
 
-**A project can write the message differently.** When `../customization/push.md` exists, it says what this project does instead of the tags, the format, the language, or the message footer given further down. The attribution ban below never falls under what gets customized, whatever `customization/push.md` writes. The rest, splitting into scopes and how to find it, doesn't get customized either and stays defined here.
+**A project can write the message differently.** When `.claude/dpw/push.md` exists, it says what this project does instead of the tags, the format, the language, or the message footer given further down. The attribution ban below never falls under what gets customized, whatever `.claude/dpw/push.md` writes. The rest, splitting into scopes and how to find it, doesn't get customized either and stays defined here.
 
 ## 1. Look Before You Touch
 

@@ -115,7 +115,7 @@ tar -xzf "$archive" -C "$INSTALL_DIR"
 rm -f "$archive" "$CHECKSUMS_FILE"
 chmod +x "$INSTALL_DIR/bin/dpw"
 
-[ -f "$INSTALL_DIR/bin/rules/rules.md" ] || fail "$BUNDLE_ASSET carried no bin/rules/rules.md"
+[ -f "$INSTALL_DIR/bin/rules/global/rules.md" ] || fail "$BUNDLE_ASSET carried no bin/rules/global/rules.md"
 
 ln -sfn "$INSTALL_DIR/bin/dpw" "$BIN_DIR/dpw"
 

@@ -2,16 +2,16 @@
 
 ## Commands
 
-`init` syncs the corpus at the `rules/` checkout next to this package into a
+`init` syncs `global/`, at the `rules/` checkout next to this package, into a
 single database every project on the machine shares, at
 `$HOME/.local/share/dpw/rules.sqlite3` unless `DPW_RULES_DATABASE` says
 otherwise. A later run replaces that database's content wholesale, so it
-always matches the installed corpus exactly. `customization/` is the one part
-of the corpus that is not shared: `init` ensures each of its files exists
-under this project's `.claude/rules/customization/`, without ever overwriting
-one the project already wrote. `init` also declares `dpw`'s MCP server in
-`.mcp.json`, adding or replacing only its own entry and leaving every other
-server a project declared for itself alone.
+always matches the installed corpus exactly. `project/` is the one part of
+the corpus that is not shared: `init` ensures each of its files exists under
+this project's `.claude/dpw/`, without ever overwriting one the project
+already wrote. `init` also declares `dpw`'s MCP server in `.mcp.json`, adding
+or replacing only its own entry and leaving every other server a project
+declared for itself alone.
 
 `dpw` only works inside a git repository whose `origin` remote points at
 GitHub or GitLab: the project's id is `host/owner/repo`, taken from that

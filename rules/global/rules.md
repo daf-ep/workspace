@@ -23,15 +23,15 @@ A project that adopts this folder declares eight things, once, in its root instr
 
 As long as these eight lines exist somewhere, the eleven gates apply without adjustment. `test.md` says what the absence of a test command changes for the second check and for the decision to write the project's first test. Nothing in `rules/` needs to be edited to change project, and a file in this folder that named a specific path, repo, or tool would be a defect to fix.
 
-## Fine-Grained Customization, in `customization/`
+## Fine-Grained Customization, in `.claude/dpw/`
 
-An eight-line declaration isn't enough everywhere. One aspect of a `common/` subject can have a way of doing things specific to a company. That aspect lives in a `customization/` file that carries the same name as the `common/` file whose aspect it customizes: `push.md` for what `common/push.md` says to write, `code.md` for the sharing threshold that `common/code.md` sets by default at the third use, `review.md` for the passing threshold and the number of reviewers that `common/review.md` sets by default.
+An eight-line declaration isn't enough everywhere. One aspect of a `common/` subject can have a way of doing things specific to a company. That aspect lives in a `.claude/dpw/` file that carries the same name as the `common/` file whose aspect it customizes: `push.md` for what `common/push.md` says to write, `code.md` for the sharing threshold that `common/code.md` sets by default at the third use, `review.md` for the passing threshold and the number of reviewers that `common/review.md` sets by default.
 
-Commit tags can therefore end up declared in two places, the project's root instructions file and `customization/push.md`. When both exist and diverge, `customization/push.md` has authority over the tags, exactly as it has authority over everything else it customizes; the root file remains the source for the other seven lines of its declaration.
+Commit tags can therefore end up declared in two places, the project's root instructions file and `.claude/dpw/push.md`. When both exist and diverge, `.claude/dpw/push.md` has authority over the tags, exactly as it has authority over everything else it customizes; the root file remains the source for the other seven lines of its declaration.
 
-A `customization/` file never repeats the mechanism, it only says what **this particular project** does differently. It stays minimal by default, a handful of sections that each say "no exception" until someone has filled them in, and a new project only has to replace the lines that matter. The matching `common/` file points to it and keeps all of the mechanism's complexity.
+A `.claude/dpw/` file never repeats the mechanism, it only says what **this particular project** does differently. It stays minimal by default, a handful of sections that each say "no exception" until someone has filled them in, and a new project only has to replace the lines that matter. The matching `common/` file points to it and keeps all of the mechanism's complexity.
 
-`customization/customization.md` is the only one that stands apart: no `common/` subject talks about it, because it gathers preferences that cut across all the work on the project, like the language the conversation is held in. A single list, under "Global rules to follow": one rule per line, one default line saying that none is imposed until the project has added one.
+`.claude/dpw/customization.md` is the only one that stands apart: no `common/` subject talks about it, because it gathers preferences that cut across all the work on the project, like the language the conversation is held in. A single list, under "Global rules to follow": one rule per line, one default line saying that none is imposed until the project has added one.
 
 ## The Eleven Gates
 

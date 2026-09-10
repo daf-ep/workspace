@@ -92,7 +92,7 @@ Remove-Item $checksumsFile -Force
 
 $binaryPath = Join-Path $binDir 'dpw.exe'
 $rules = Join-Path $binDir 'rules'
-if (-not (Test-Path (Join-Path $rules 'rules.md'))) { Fail "$BundleAsset carried no bin/rules/rules.md" }
+if (-not (Test-Path (Join-Path $rules 'global/rules.md'))) { Fail "$BundleAsset carried no bin/rules/global/rules.md" }
 
 Write-Host ''
 Write-Host "Ready. dpw is installed at $binaryPath, reading its rules from $rules."

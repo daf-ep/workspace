@@ -46,7 +46,7 @@ const String _serverName = 'dpw-decisions';
 /// Only the `dpw-decisions` entry is touched: every other server a project
 /// declared for itself, and every other top-level key in the file, is kept
 /// exactly as it was. A project's own `.mcp.json` is customization no sync
-/// should clobber, the same rule `rules/customization/` already follows.
+/// should clobber, the same rule `.claude/dpw/` already follows.
 void ensureMcpServerDeclared(Directory projectRoot) {
   final file = File(p.join(projectRoot.path, '.mcp.json'));
 

@@ -60,33 +60,33 @@ Directory? findRulesSource() {
   return rules.existsSync() ? rules : null;
 }
 
-/// Reads every rule file under [source] except `customization`, keyed by
-/// its path relative to [source], forward-slash separated.
+/// Reads every file under `global/` in [rulesSource], keyed by its path
+/// relative to `global/`, forward-slash separated.
 ///
 /// This is what a sync writes into the shared rules database: the corpus
-/// content every project reads the same copy of, `customization` excluded
-/// because it is the one part of the corpus that is not shared.
-Map<String, String> collectRuleContents(Directory source) {
+/// content every project reads the same copy of.
+Map<String, String> collectRuleContents(Directory rulesSource) {
+  final global = Directory(p.join(rulesSource.path, 'global'));
   final contents = <String, String>{};
-  for (final entity in source.listSync(recursive: true).whereType<File>()) {
-    final relative = p.relative(entity.path, from: source.path);
-    if (p.split(relative).first == 'customization') continue;
+  for (final entity in global.listSync(recursive: true).whereType<File>()) {
+    final relative = p.relative(entity.path, from: global.path);
     contents[p.split(relative).join('/')] = entity.readAsStringSync();
   }
   return contents;
 }
 
-/// Ensures every file under `source/customization` exists under
+/// Ensures every file under `project/` in [rulesSource] exists under
 /// [destination], without ever overwriting one already there.
 ///
 /// A project's own customizations are never touched by a later sync: this
 /// only adds a file the corpus ships when the project has no version of its
 /// own yet.
-void syncCustomization({required Directory source, required Directory destination}) {
-  if (!source.existsSync()) return;
+void syncProjectFiles({required Directory rulesSource, required Directory destination}) {
+  final project = Directory(p.join(rulesSource.path, 'project'));
+  if (!project.existsSync()) return;
   destination.createSync(recursive: true);
 
-  for (final file in source.listSync().whereType<File>()) {
+  for (final file in project.listSync().whereType<File>()) {
     final destPath = p.join(destination.path, p.basename(file.path));
     if (!File(destPath).existsSync()) {
       file.copySync(destPath);

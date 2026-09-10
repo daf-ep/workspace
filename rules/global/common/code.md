@@ -78,7 +78,7 @@ A language has already solved part of the problem, and its solution is checked b
 
 ## The Third Use Moves Into Shared Code
 
-This is the rule that demands the most discipline, because it plays out at the moment you're in a hurry. When `../customization/code.md` exists, it says how many uses this project tolerates before sharing; the number that follows is the one that applies by default.
+This is the rule that demands the most discipline, because it plays out at the moment you're in a hurry. When `.claude/dpw/code.md` exists, it says how many uses this project tolerates before sharing; the number that follows is the one that applies by default.
 
 **Two uses, you look. Three, you share.** The first duplicate might be a coincidence, and a bad abstraction costs more than a duplication: it gets paid at every reading and comes apart badly. At the third, it isn't a coincidence anymore.
 

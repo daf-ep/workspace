@@ -73,7 +73,7 @@ void main() {
     expect(buffer.statusText, contains('customization stubs ensured'));
     expect(buffer.statusText, contains('declared the mcp server'));
     expect(await readRule(databasePath: rulesDatabasePath, name: 'rules', type: 'rules'), isNotNull);
-    expect(File(p.join(project.path, '.claude', 'rules', 'customization', 'push.md')).existsSync(), isTrue);
+    expect(File(p.join(project.path, '.claude', 'dpw', 'push.md')).existsSync(), isTrue);
     expect(File(p.join(project.path, '.mcp.json')).existsSync(), isTrue);
   });
 }

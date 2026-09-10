@@ -97,7 +97,7 @@ void main() {
     expect(result.exitCode, 0, reason: result.stderr.toString());
     expect(result.stdout, contains('this project is github.com/dpw-tests/standalone-e2e'));
     expect(await readRule(databasePath: rulesDatabasePath, name: 'rules', type: 'rules'), isNotNull);
-    expect(File(p.join(project.path, '.claude', 'rules', 'customization', 'push.md')).existsSync(), isTrue);
+    expect(File(p.join(project.path, '.claude', 'dpw', 'push.md')).existsSync(), isTrue);
   });
 
   test('the bundled native sqlite3 library loads and records a decision', () async {

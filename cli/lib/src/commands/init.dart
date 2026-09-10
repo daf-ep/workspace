@@ -68,9 +68,9 @@ class InitCommand extends DpwCommand {
     await syncRulesDatabase(databasePath: globals.rulesDatabasePath, contents: collectRuleContents(rulesSource));
     globals.logger.printStatus('dpw: shared rules synced into ${globals.rulesDatabasePath}');
 
-    final customizationDest = Directory(p.join(cwd.path, '.claude', 'rules', 'customization'));
-    syncCustomization(source: Directory(p.join(rulesSource.path, 'customization')), destination: customizationDest);
-    globals.logger.printStatus('dpw: customization stubs ensured in ${customizationDest.path}');
+    final projectFilesDest = Directory(p.join(cwd.path, '.claude', 'dpw'));
+    syncProjectFiles(rulesSource: rulesSource, destination: projectFilesDest);
+    globals.logger.printStatus('dpw: customization stubs ensured in ${projectFilesDest.path}');
 
     ensureMcpServerDeclared(cwd);
     globals.logger.printStatus('dpw: declared the mcp server in .mcp.json');

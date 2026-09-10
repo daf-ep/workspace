@@ -52,7 +52,7 @@ Eleven gates, one per stage of writing software, from the first line of research
 10. **Push.** Turning a messy working tree into clean, atomic commits.
 11. **CI.** What a green check actually proves, and what it doesn't.
 
-None of it names a language, a company, or a tool. A `customization/` layer lets a single project override one detail, a commit tag list, a review threshold, without touching the rules themselves.
+None of it names a language, a company, or a tool. A `.claude/dpw/` layer lets a single project override one detail, a commit tag list, a review threshold, without touching the rules themselves.
 
 ## Why it's public
 
