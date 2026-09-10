@@ -71,7 +71,7 @@ Future<bool> pushContextDatabase({
   final parent = await remoteBranchTip(projectRoot, branch);
   final commitCommand = Git.repo(path).commitTree().token(tree.text.trim());
   if (parent != null) commitCommand.token('-p').token(parent);
-  final commit = await commitCommand.token('-m').token('dpw: context update').output();
+  final commit = await commitCommand.token('-m').token('dpw: context update').output(env: commitIdentityEnv);
   if (commit.failed) return false;
 
   final pushed = await runGit(Git.repo(path).push().token('origin').token('${commit.text.trim()}:refs/heads/$branch'));

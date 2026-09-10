@@ -58,6 +58,7 @@ Future<void> ensureOrphanBranch({required Directory projectRoot, required String
 
   final root = await runGit(
     Git.repo(projectRoot.path).commitTree().token(_emptyTreeSha).token('-m').token('dpw: start the $branch branch'),
+    env: commitIdentityEnv,
   );
   if (root.failed) throwToolExit('dpw: could not create the $branch branch.\n${root.stderr}');
 

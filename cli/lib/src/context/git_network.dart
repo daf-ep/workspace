@@ -48,12 +48,25 @@ import 'package:fiber_shell/fiber_shell.dart';
 /// one, smaller than any hook's.
 const Duration _networkTimeout = Duration(seconds: 10);
 
+/// The author and committer identity dpw's own plumbing commits carry.
+///
+/// `commit-tree` refuses to build a commit at all when git has neither
+/// `user.name` nor `user.email` configured anywhere, which a fresh checkout,
+/// a CI runner included, often does not. dpw's commits are not the user's
+/// own, so they carry this identity instead of depending on one.
+const Map<String, String> commitIdentityEnv = {
+  'GIT_AUTHOR_NAME': 'dpw',
+  'GIT_AUTHOR_EMAIL': 'dpw@localhost',
+  'GIT_COMMITTER_NAME': 'dpw',
+  'GIT_COMMITTER_EMAIL': 'dpw@localhost',
+};
+
 /// Runs [command], the way [GitCmd.output] does, except a call that reaches
 /// `origin` and does not answer within [_networkTimeout] counts as failed
 /// rather than left hanging.
-Future<ShellResult> runGit(GitCmd command, {String? input}) async {
+Future<ShellResult> runGit(GitCmd command, {String? input, Map<String, String>? env}) async {
   try {
-    return await command.output(input: input).timeout(_networkTimeout);
+    return await command.output(input: input, env: env).timeout(_networkTimeout);
   } on TimeoutException {
     return ShellResult(
       command: command.line,
