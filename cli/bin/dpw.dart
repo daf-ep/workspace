@@ -38,10 +38,11 @@ import 'dart:io';
 
 import 'package:cli/runner.dart' as runner;
 import 'package:cli/src/commands/init.dart';
+import 'package:cli/src/commands/mcp.dart';
 import 'package:cli/src/runner/dpw_command.dart';
 
 Future<void> main(List<String> args) async {
-  final int code = await runner.run(args, () => <DpwCommand>[InitCommand()]);
+  final int code = await runner.run(args, () => <DpwCommand>[InitCommand(), McpCommand()]);
 
   if (code != 0) exit(code);
 }

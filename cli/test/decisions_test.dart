@@ -36,35 +36,60 @@
 
 import 'dart:io';
 
-import 'package:cli/src/project_id.dart';
+import 'package:cli/src/decisions.dart';
 import 'package:path/path.dart' as p;
+import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 
 void main() {
   late Directory dir;
-  late File idFile;
+  late String databasePath;
 
   setUp(() {
-    dir = Directory.systemTemp.createTempSync('dafep_id_');
-    idFile = File(p.join(dir.path, '.claude', 'ID'));
+    dir = Directory.systemTemp.createTempSync('dpw_decisions_');
+    databasePath = p.join(dir.path, 'nested', 'decisions.sqlite3');
   });
 
   tearDown(() {
     dir.deleteSync(recursive: true);
   });
 
-  test('generates a new id shaped like a uuid when none exists', () {
-    final result = ensureProjectId(idFile);
+  test('creates the database and its table on the first call', () {
+    recordDecision(
+      databasePath: databasePath,
+      projectId: 'project-a',
+      decision: const Decision(decided: 'x', why: 'y', implies: 'z', verified: 'w'),
+    );
 
-    expect(result.created, isTrue);
-    expect(result.id, matches(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')));
+    final db = sqlite3.open(databasePath);
+    addTearDown(db.close);
+    final rows = db.select('SELECT * FROM decisions');
+
+    expect(rows, hasLength(1));
+    expect(rows.first['project_id'], 'project-a');
+    expect(rows.first['decided'], 'x');
   });
 
-  test('keeps the existing id on a second call', () {
-    final first = ensureProjectId(idFile);
-    final second = ensureProjectId(idFile);
+  test('keeps decisions from different projects apart', () {
+    recordDecision(
+      databasePath: databasePath,
+      projectId: 'project-a',
+      decision: const Decision(decided: 'a decision', why: 'y', implies: 'z', verified: 'w'),
+    );
+    recordDecision(
+      databasePath: databasePath,
+      projectId: 'project-b',
+      decision: const Decision(decided: 'another decision', why: 'y', implies: 'z', verified: 'w'),
+    );
 
-    expect(second.created, isFalse);
-    expect(second.id, first.id);
+    final db = sqlite3.open(databasePath);
+    addTearDown(db.close);
+    final projectA = db.select('SELECT * FROM decisions WHERE project_id = ?', ['project-a']);
+    final projectB = db.select('SELECT * FROM decisions WHERE project_id = ?', ['project-b']);
+
+    expect(projectA, hasLength(1));
+    expect(projectB, hasLength(1));
+    expect(projectA.first['decided'], 'a decision');
+    expect(projectB.first['decided'], 'another decision');
   });
 }

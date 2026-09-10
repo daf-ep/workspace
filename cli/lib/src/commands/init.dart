@@ -40,38 +40,35 @@ import 'package:path/path.dart' as p;
 
 import '../base/common.dart';
 import '../globals.dart' as globals;
-import '../project_id.dart';
+import '../mcp_config.dart';
 import '../rules_sync.dart';
 import '../runner/dpw_command.dart';
 
-/// Creates `.claude/rules` in the current directory and assigns this
-/// project its id.
+/// Creates `.claude/rules` in the current directory and declares dpw's MCP
+/// server in `.mcp.json`.
 class InitCommand extends DpwCommand {
   @override
   final name = 'init';
 
   @override
-  final description = 'Sync .claude/rules from this checkout and assign the project an id.';
+  final description = 'Sync .claude/rules from this checkout and declare the mcp server.';
 
   @override
   Future<DpwCommandResult> runCommand() async {
+    final cwd = globals.projectRoot;
+    globals.logger.printStatus('dpw: this project is ${await globals.projectId}');
+
     final rulesSource = globals.rulesSource;
     if (rulesSource == null) {
       throwToolExit('dpw: no rules directory found next to this tool');
     }
 
-    final cwd = Directory.current.path;
-    final rulesDest = Directory(p.join(cwd, '.claude', 'rules'));
+    final rulesDest = Directory(p.join(cwd.path, '.claude', 'rules'));
     syncRules(source: rulesSource, destination: rulesDest);
     globals.logger.printStatus('dpw: rules synced into ${rulesDest.path}');
 
-    final idFile = File(p.join(cwd, '.claude', 'ID'));
-    final id = ensureProjectId(idFile);
-    if (id.created) {
-      globals.logger.printStatus('dpw: assigned this project id ${id.id}');
-    } else {
-      globals.logger.printStatus('dpw: this project already has id ${id.id}');
-    }
+    ensureMcpServerDeclared(cwd);
+    globals.logger.printStatus('dpw: declared the mcp server in .mcp.json');
 
     return const DpwCommandResult.success();
   }

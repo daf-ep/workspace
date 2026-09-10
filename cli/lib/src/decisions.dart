@@ -36,37 +36,59 @@
 
 import 'dart:io';
 
-import 'package:cli/src/base/context.dart';
-import 'package:cli/src/base/logger.dart';
-import 'package:cli/src/commands/init.dart';
-import 'package:cli/src/globals.dart';
 import 'package:path/path.dart' as p;
-import 'package:test/test.dart';
+import 'package:sqlite3/sqlite3.dart';
 
-void main() {
-  test('logs through the injected logger instead of a real stream', () async {
-    final rulesSource = Directory(p.join(Directory.current.path, '..', 'rules'));
-    final project = Directory.systemTemp.createTempSync('dpw_init_command_');
-    addTearDown(() => project.deleteSync(recursive: true));
+/// One decision, carrying the four fields `context.md` requires.
+class Decision {
+  /// Wraps the four fields a decision always carries.
+  const Decision({required this.decided, required this.why, required this.implies, required this.verified});
 
-    final buffer = BufferLogger();
+  /// What was decided, as a fact about the system today.
+  final String decided;
 
-    final exitCode = await AppContext.current.run<int>(
-      body: () => InitCommand().run(),
-      overrides: <Type, Generator>{
-        Logger: () => buffer,
-        RulesSource: () => RulesSource(rulesSource),
-        ProjectRoot: () => ProjectRoot(project),
-        GitProjectId: () => const GitProjectId('github.com/dpw-tests/init-command-test'),
-      },
+  /// The reasoning, and what was ruled out.
+  final String why;
+
+  /// The consequence for whoever touches this next.
+  final String implies;
+
+  /// What confirmed it works.
+  final String verified;
+}
+
+/// Records [decision] for [projectId] in the database at [databasePath].
+///
+/// Creates the database and its table the first time either is missing.
+void recordDecision({required String databasePath, required String projectId, required Decision decision}) {
+  Directory(p.dirname(databasePath)).createSync(recursive: true);
+
+  final db = sqlite3.open(databasePath);
+  try {
+    db.execute('''
+      CREATE TABLE IF NOT EXISTS decisions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id TEXT NOT NULL,
+        decided TEXT NOT NULL,
+        why TEXT NOT NULL,
+        implies TEXT NOT NULL,
+        verified TEXT NOT NULL,
+        recorded_at TEXT NOT NULL
+      )
+    ''');
+
+    db.execute(
+      'INSERT INTO decisions (project_id, decided, why, implies, verified, recorded_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        projectId,
+        decision.decided,
+        decision.why,
+        decision.implies,
+        decision.verified,
+        DateTime.now().toIso8601String(),
+      ],
     );
-
-    expect(exitCode, 0);
-    expect(buffer.hadErrorOutput, isFalse);
-    expect(buffer.statusText, contains('this project is github.com/dpw-tests/init-command-test'));
-    expect(buffer.statusText, contains('rules synced into'));
-    expect(buffer.statusText, contains('declared the mcp server'));
-    expect(File(p.join(project.path, '.claude', 'rules', 'rules.md')).existsSync(), isTrue);
-    expect(File(p.join(project.path, '.mcp.json')).existsSync(), isTrue);
-  });
+  } finally {
+    db.close();
+  }
 }

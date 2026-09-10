@@ -34,39 +34,39 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import 'dart:convert';
 import 'dart:io';
 
-import 'package:cli/src/base/context.dart';
-import 'package:cli/src/base/logger.dart';
-import 'package:cli/src/commands/init.dart';
-import 'package:cli/src/globals.dart';
 import 'package:path/path.dart' as p;
-import 'package:test/test.dart';
 
-void main() {
-  test('logs through the injected logger instead of a real stream', () async {
-    final rulesSource = Directory(p.join(Directory.current.path, '..', 'rules'));
-    final project = Directory.systemTemp.createTempSync('dpw_init_command_');
-    addTearDown(() => project.deleteSync(recursive: true));
+const String _serverName = 'dpw-decisions';
 
-    final buffer = BufferLogger();
+/// Declares dpw's MCP server in `.mcp.json` under [projectRoot].
+///
+/// Only the `dpw-decisions` entry is touched: every other server a project
+/// declared for itself, and every other top-level key in the file, is kept
+/// exactly as it was. A project's own `.mcp.json` is customization no sync
+/// should clobber, the same rule `rules/customization/` already follows.
+void ensureMcpServerDeclared(Directory projectRoot) {
+  final file = File(p.join(projectRoot.path, '.mcp.json'));
 
-    final exitCode = await AppContext.current.run<int>(
-      body: () => InitCommand().run(),
-      overrides: <Type, Generator>{
-        Logger: () => buffer,
-        RulesSource: () => RulesSource(rulesSource),
-        ProjectRoot: () => ProjectRoot(project),
-        GitProjectId: () => const GitProjectId('github.com/dpw-tests/init-command-test'),
-      },
-    );
+  final Map<String, dynamic> config = _readConfig(file);
+  final servers = (config['mcpServers'] as Map<String, dynamic>?) ?? <String, dynamic>{};
 
-    expect(exitCode, 0);
-    expect(buffer.hadErrorOutput, isFalse);
-    expect(buffer.statusText, contains('this project is github.com/dpw-tests/init-command-test'));
-    expect(buffer.statusText, contains('rules synced into'));
-    expect(buffer.statusText, contains('declared the mcp server'));
-    expect(File(p.join(project.path, '.claude', 'rules', 'rules.md')).existsSync(), isTrue);
-    expect(File(p.join(project.path, '.mcp.json')).existsSync(), isTrue);
-  });
+  servers[_serverName] = <String, dynamic>{
+    'command': 'dpw',
+    'args': ['mcp'],
+  };
+  config['mcpServers'] = servers;
+
+  file.writeAsStringSync('${const JsonEncoder.withIndent('  ').convert(config)}\n');
+}
+
+Map<String, dynamic> _readConfig(File file) {
+  if (!file.existsSync()) return <String, dynamic>{};
+
+  final content = file.readAsStringSync().trim();
+  if (content.isEmpty) return <String, dynamic>{};
+
+  return jsonDecode(content) as Map<String, dynamic>;
 }

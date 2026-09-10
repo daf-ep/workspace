@@ -34,7 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import 'dart:async';
 import 'dart:io';
 
 import 'package:dart_mcp/client.dart';
@@ -46,102 +45,63 @@ import 'package:test/test.dart';
 import 'support/fake_git_repo.dart';
 
 void main() {
-  // sqlite3 ships as a native asset, which `dart compile exe` cannot embed:
-  // only `dart build cli` resolves the build hook that bundles libsqlite3
-  // beside the executable, in a `bin/` and `lib/` bundle rather than a single
-  // file.
-  late Directory bundle;
-  late Directory project;
-  late String executablePath;
+  test('a real client can call record_decision and it lands in sqlite', () async {
+    final project = Directory.systemTemp.createTempSync('dpw_mcp_e2e_project_');
+    final databaseDir = Directory.systemTemp.createTempSync('dpw_mcp_e2e_db_');
+    addTearDown(() => project.deleteSync(recursive: true));
+    addTearDown(() => databaseDir.deleteSync(recursive: true));
+    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/mcp-e2e.git');
 
-  setUpAll(() async {
-    bundle = Directory.systemTemp.createTempSync('dpw_bundle_');
+    final databasePath = p.join(databaseDir.path, 'decisions.sqlite3');
+    final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
 
-    final build = await Process.run(Platform.resolvedExecutable, [
-      'build',
-      'cli',
-      '-o',
-      bundle.path,
-    ], workingDirectory: Directory.current.path);
-    if (build.exitCode != 0) {
-      fail('dart build cli failed:\n${build.stdout}\n${build.stderr}');
-    }
-
-    executablePath = p.join(bundle.path, 'bundle', 'bin', 'dpw');
-    await _copyDirectory(
-      Directory(p.join(Directory.current.path, '..', 'rules')),
-      Directory(p.join(bundle.path, 'bundle', 'bin', 'rules')),
-    );
-  });
-
-  tearDownAll(() => bundle.deleteSync(recursive: true));
-
-  setUp(() async {
-    project = Directory.systemTemp.createTempSync('dpw_project_');
-    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/standalone-e2e.git');
-  });
-
-  tearDown(() => project.deleteSync(recursive: true));
-
-  test('finds its own rules once compiled, without a source checkout nearby', () async {
-    final result = await Process.run(executablePath, ['init'], workingDirectory: project.path);
-
-    expect(result.exitCode, 0, reason: result.stderr.toString());
-    expect(result.stdout, contains('this project is github.com/dpw-tests/standalone-e2e'));
-    expect(File(p.join(project.path, '.claude', 'rules', 'rules.md')).existsSync(), isTrue);
-  });
-
-  test('the bundled native sqlite3 library loads and records a decision', () async {
-    final databasePath = p.join(project.path, 'decisions.sqlite3');
-
-    final client = MCPClient(Implementation(name: 'standalone_binary_e2e_test', version: '0.0.1'));
+    final client = MCPClient(Implementation(name: 'mcp_command_e2e_test', version: '0.0.1'));
     final process = await Process.start(
-      executablePath,
-      ['mcp'],
+      Platform.resolvedExecutable,
+      ['run', binPath, 'mcp'],
       workingDirectory: project.path,
       environment: {'DPW_DECISIONS_DATABASE': databasePath},
     );
     addTearDown(process.kill);
 
     final server = client.connectServer(stdioChannel(input: process.stdout, output: process.stdin));
-    await server.initialize(
+
+    final initializeResult = await server.initialize(
       InitializeRequest(
         protocolVersion: ProtocolVersion.latestSupported,
         capabilities: client.capabilities,
         clientInfo: client.implementation,
       ),
     );
+    expect(initializeResult.capabilities.tools, isNotNull);
     server.notifyInitialized();
+
+    final tools = await server.listTools(ListToolsRequest());
+    expect(tools.tools.map((tool) => tool.name), contains('record_decision'));
 
     final result = await server.callTool(
       CallToolRequest(
         name: 'record_decision',
         arguments: {
-          'decided': 'x',
-          'why': 'y',
-          'implies': 'z',
-          'verified': 'this end-to-end test, against the bundled executable',
+          'decided': 'Use sqlite3 directly for the decisions database.',
+          'why': 'No schema is settled enough yet to justify a code generator.',
+          'implies': 'A future move to drift replaces this file, not the schema.',
+          'verified': 'This end-to-end test, calling the real tool through a real client.',
         },
       ),
     );
     expect(result.isError, isNot(true));
+
     await client.shutdown();
+
+    const projectId = 'github.com/dpw-tests/mcp-e2e';
 
     final db = sqlite3.open(databasePath);
     addTearDown(db.close);
-    expect(db.select('SELECT decided FROM decisions'), hasLength(1));
-  });
-}
+    final rows = db.select('SELECT * FROM decisions WHERE project_id = ?', [projectId]);
 
-Future<void> _copyDirectory(Directory source, Directory destination) async {
-  destination.createSync(recursive: true);
-  for (final entity in source.listSync()) {
-    final name = p.basename(entity.path);
-    final targetPath = p.join(destination.path, name);
-    if (entity is Directory) {
-      await _copyDirectory(entity, Directory(targetPath));
-    } else if (entity is File) {
-      entity.copySync(targetPath);
-    }
-  }
+    expect(rows, hasLength(1));
+    expect(rows.first['decided'], 'Use sqlite3 directly for the decisions database.');
+    expect(rows.first['project_id'], projectId);
+  });
 }

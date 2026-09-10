@@ -38,8 +38,12 @@ library;
 
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
+import 'base/common.dart';
 import 'base/context.dart';
 import 'base/logger.dart';
+import 'git_identity.dart';
 import 'rules_sync.dart';
 
 /// The context the current zone carries.
@@ -65,3 +69,72 @@ class RulesSource {
 
 /// The rules directory this run syncs from, or null when none was found.
 Directory? get rulesSource => (context.get<RulesSource>() ?? RulesSource(findRulesSource())).directory;
+
+/// The project this run works on.
+///
+/// Wrapped rather than looked up through the raw [Directory] type, so a test
+/// overriding it never risks colliding with an unrelated one a future
+/// override might register, and never has to mutate the real
+/// [Directory.current] to point a command at a temporary project: doing that
+/// is process-wide state, and races against any other test reading it at the
+/// same time.
+class ProjectRoot {
+  /// Wraps [directory], the answer [projectRoot] should give for this run.
+  const ProjectRoot(this.directory);
+
+  /// The project this run works on.
+  final Directory directory;
+}
+
+/// The project this run works on, [Directory.current] unless overridden.
+Directory get projectRoot => (context.get<ProjectRoot>() ?? ProjectRoot(Directory.current)).directory;
+
+/// This project's id, [gitProjectId] of [projectRoot] unless overridden.
+///
+/// Wrapped rather than looked up through the raw [String] type, so a test
+/// overriding it never risks colliding with an unrelated one a future
+/// override might register.
+class GitProjectId {
+  /// Wraps [value], the answer [projectId] should give for this run.
+  const GitProjectId(this.value);
+
+  /// The id this project's git remote gives it.
+  final String value;
+}
+
+/// This project's id: `host/owner/repo`, read from its git remote.
+Future<String> get projectId async {
+  if (context.get<GitProjectId>() case final GitProjectId overridden) return overridden.value;
+  return gitProjectId(projectRoot);
+}
+
+/// Where the decisions database this run reads and writes lives.
+///
+/// Wrapped rather than looked up through a raw [String], so a test overriding
+/// it never risks colliding with an unrelated one a future override might
+/// register.
+class DecisionsDatabase {
+  /// Wraps [path], the answer [decisionsDatabasePath] should give for this run.
+  const DecisionsDatabase(this.path);
+
+  /// The file this run's decisions database lives at.
+  final String path;
+}
+
+/// The path to the decisions database this run reads and writes.
+///
+/// One database for every project, at a fixed place under the user's home,
+/// so a decision made in one project stays queryable alongside every other
+/// project's, keyed apart by the project id each row carries.
+String get decisionsDatabasePath =>
+    (context.get<DecisionsDatabase>() ?? DecisionsDatabase(_defaultDecisionsDatabasePath)).path;
+
+String get _defaultDecisionsDatabasePath {
+  if (Platform.environment['DPW_DECISIONS_DATABASE'] case final String overridden when overridden.isNotEmpty) {
+    return overridden;
+  }
+
+  final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+  if (home == null) throwToolExit('dpw: could not find the home directory to store decisions in');
+  return p.join(home, '.local', 'share', 'dpw', 'decisions.sqlite3');
+}
