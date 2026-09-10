@@ -91,7 +91,7 @@ void main() {
       executablePath,
       ['init'],
       workingDirectory: project.path,
-      environment: {'DPW_RULES_DATABASE': rulesDatabasePath},
+      environment: {'DPW_RULES_DATABASE': rulesDatabasePath, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
     );
 
     expect(result.exitCode, 0, reason: result.stderr.toString());
@@ -108,7 +108,7 @@ void main() {
       executablePath,
       ['mcp'],
       workingDirectory: project.path,
-      environment: {'DPW_DECISIONS_DATABASE': databasePath},
+      environment: {'DPW_DECISIONS_DATABASE': databasePath, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
     );
     addTearDown(process.kill);
 

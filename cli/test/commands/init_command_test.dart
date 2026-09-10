@@ -63,6 +63,7 @@ void main() {
         ProjectRoot: () => ProjectRoot(project),
         GitProjectId: () => const GitProjectId('github.com/dpw-tests/init-command-test'),
         RulesDatabasePath: () => RulesDatabasePath(rulesDatabasePath),
+        RemoteUpdateCheckInterval: () => const RemoteUpdateCheckInterval(Duration(days: 365 * 100)),
       },
     );
 

@@ -77,6 +77,10 @@ void main() {
     });
   });
 
+  test('collectProjectContents reads every file directly under project/, keyed by name', () {
+    expect(collectProjectContents(rulesSource), {'push.md': 'default customization'});
+  });
+
   group('syncProjectFiles', () {
     late Directory destination;
 
@@ -84,7 +88,7 @@ void main() {
     tearDown(() => destination.deleteSync(recursive: true));
 
     test('adds a project file the project never wrote', () {
-      syncProjectFiles(rulesSource: rulesSource, destination: destination);
+      syncProjectFiles(contents: collectProjectContents(rulesSource), destination: destination);
 
       expect(File(p.join(destination.path, 'push.md')).readAsStringSync(), 'default customization');
     });
@@ -93,7 +97,7 @@ void main() {
       destination.createSync(recursive: true);
       File(p.join(destination.path, 'push.md')).writeAsStringSync('a project wrote this already');
 
-      syncProjectFiles(rulesSource: rulesSource, destination: destination);
+      syncProjectFiles(contents: collectProjectContents(rulesSource), destination: destination);
 
       expect(File(p.join(destination.path, 'push.md')).readAsStringSync(), 'a project wrote this already');
     });

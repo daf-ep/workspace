@@ -25,7 +25,7 @@ cd ~/any/project
 dpw init
 ```
 
-Run it again whenever you want the latest rules. Anything you've customized for that project stays exactly as you left it, and the project keeps the same id across every run.
+`dpw` also checks this repository for updates on its own, at most once a day, so you rarely need to run `init` again just to catch up. Anything you've customized for that project stays exactly as you left it, and the project keeps the same id across every run.
 
 Working on the CLI itself, rather than just using it, needs the Dart SDK:
 

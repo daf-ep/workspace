@@ -27,6 +27,17 @@ every project, at `$HOME/.local/share/dpw/decisions.sqlite3` unless
 `DPW_DECISIONS_DATABASE` says otherwise, tagged with the project's git-derived
 id.
 
+## Checking for updates
+
+Every command checks the public corpus, `daf-ep/workspace` on GitHub, for
+updates once it finishes its own work, at most once a day unless
+`DPW_UPDATE_CHECK_INTERVAL_SECONDS` says otherwise. A check that finds the
+corpus changed replaces the shared database wholesale, the same way `init`
+does, and adds any new `project/` file to the current project's
+`.claude/dpw/`, never overwriting one already there. A check that cannot
+reach GitHub, or that runs before the interval has passed, is silent: dpw
+tries again next time, and no command ever fails because of it.
+
 ## Running it from source
 
 ```

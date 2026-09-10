@@ -6,10 +6,12 @@ environment:
   sdk: ^3.12.2
 
 dependencies:
+  archive: ^4.2.0
   args: ^2.7.0
   dart_mcp: ^0.5.2
   drift: ^2.34.0
   fiber_shell: ^1.4.0
+  http: ^1.6.0
   path: ^1.9.0
   sqlite3: ^3.5.2
 

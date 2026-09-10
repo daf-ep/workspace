@@ -58,7 +58,7 @@ void main() {
       Platform.resolvedExecutable,
       ['run', binPath, 'init'],
       workingDirectory: project.path,
-      environment: {'DPW_RULES_DATABASE': rulesDatabasePath},
+      environment: {'DPW_RULES_DATABASE': rulesDatabasePath, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
     );
 
     expect(result.exitCode, 0, reason: result.stderr.toString());

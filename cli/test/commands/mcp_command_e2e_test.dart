@@ -60,7 +60,7 @@ void main() {
       Platform.resolvedExecutable,
       ['run', binPath, 'mcp'],
       workingDirectory: project.path,
-      environment: {'DPW_DECISIONS_DATABASE': databasePath},
+      environment: {'DPW_DECISIONS_DATABASE': databasePath, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
     );
     addTearDown(process.kill);
 

@@ -37,6 +37,7 @@
 import 'package:args/command_runner.dart';
 
 import '../globals.dart' as globals;
+import '../rules/update_check.dart';
 
 /// How a command ended.
 enum ExitStatus {
@@ -78,9 +79,33 @@ abstract class DpwCommand extends Command<int> {
       name: name,
       body: () async {
         final DpwCommandResult result = await runCommand();
+        await _checkForRemoteUpdates();
         return result.exitStatus == ExitStatus.success ? 0 : 1;
       },
     );
+  }
+
+  /// Runs the best-effort remote update check, swallowing whatever it
+  /// throws.
+  ///
+  /// A network failure already comes back as a plain "no update" from
+  /// [maybeCheckForRemoteUpdates] itself. What lands here instead is a local
+  /// problem, a corrupt database file or a permission error on
+  /// `.claude/dpw/`, and this command already did its own job by the time
+  /// that check runs: it should not fail because of it.
+  Future<void> _checkForRemoteUpdates() async {
+    try {
+      final updated = await maybeCheckForRemoteUpdates(
+        rulesDatabasePath: globals.rulesDatabasePath,
+        projectRoot: globals.projectRoot,
+        interval: globals.remoteUpdateCheckInterval,
+      );
+      if (updated) {
+        globals.logger.printStatus('dpw: refreshed the shared rules corpus from daf-ep/workspace');
+      }
+    } catch (_) {
+      return;
+    }
   }
 
   /// What this command does, once it is reached.

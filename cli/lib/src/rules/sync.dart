@@ -75,21 +75,26 @@ Map<String, String> collectRuleContents(Directory rulesSource) {
   return contents;
 }
 
-/// Ensures every file under `project/` in [rulesSource] exists under
-/// [destination], without ever overwriting one already there.
+/// Reads every file directly under `project/` in [rulesSource], keyed by
+/// its file name: `project/` is never nested, unlike `global/`.
+Map<String, String> collectProjectContents(Directory rulesSource) {
+  final project = Directory(p.join(rulesSource.path, 'project'));
+  if (!project.existsSync()) return const {};
+  return {for (final file in project.listSync().whereType<File>()) p.basename(file.path): file.readAsStringSync()};
+}
+
+/// Ensures every entry in [contents] exists under [destination] as a file
+/// named by its key, without ever overwriting one already there.
 ///
 /// A project's own customizations are never touched by a later sync: this
 /// only adds a file the corpus ships when the project has no version of its
 /// own yet.
-void syncProjectFiles({required Directory rulesSource, required Directory destination}) {
-  final project = Directory(p.join(rulesSource.path, 'project'));
-  if (!project.existsSync()) return;
+void syncProjectFiles({required Map<String, String> contents, required Directory destination}) {
   destination.createSync(recursive: true);
-
-  for (final file in project.listSync().whereType<File>()) {
-    final destPath = p.join(destination.path, p.basename(file.path));
+  for (final entry in contents.entries) {
+    final destPath = p.join(destination.path, entry.key);
     if (!File(destPath).existsSync()) {
-      file.copySync(destPath);
+      File(destPath).writeAsStringSync(entry.value);
     }
   }
 }

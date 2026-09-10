@@ -38,6 +38,7 @@ import 'dart:io';
 
 import 'package:cli/src/rules/database.dart';
 import 'package:path/path.dart' as p;
+import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -99,4 +100,49 @@ void main() {
     expect(await readRule(databasePath: databasePath, name: 'code', type: 'common'), isNull);
     expect(await readRule(databasePath: databasePath, name: 'rules', type: 'rules'), 'root rule');
   });
+
+  test('migrates a database that only ever knew rule_files, without losing its rows', () async {
+    Directory(p.dirname(databasePath)).createSync(recursive: true);
+    final db = sqlite3.open(databasePath);
+    db.execute('''
+      CREATE TABLE rule_files (
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        content TEXT NOT NULL,
+        PRIMARY KEY (name, type)
+      )
+    ''');
+    db.execute("INSERT INTO rule_files (name, type, content) VALUES ('rules', 'rules', 'root rule')");
+    db.execute('PRAGMA user_version = 1');
+    db.close();
+
+    expect(await readRule(databasePath: databasePath, name: 'rules', type: 'rules'), 'root rule');
+    expect(await lastRemoteCheckAt(databasePath: databasePath), isNull);
+
+    await recordRemoteCheckAt(databasePath: databasePath, time: DateTime.utc(2026, 3, 5));
+    expect(await lastRemoteCheckAt(databasePath: databasePath), _isAtSameMomentAs(DateTime.utc(2026, 3, 5)));
+  });
+
+  group('remote check state', () {
+    test('is null before any check was ever recorded', () async {
+      expect(await lastRemoteCheckAt(databasePath: databasePath), isNull);
+    });
+
+    test('reads back the exact time a check was recorded at', () async {
+      final checkedAt = DateTime.utc(2026, 3, 5, 12, 30);
+
+      await recordRemoteCheckAt(databasePath: databasePath, time: checkedAt);
+
+      expect(await lastRemoteCheckAt(databasePath: databasePath), _isAtSameMomentAs(checkedAt));
+    });
+
+    test('a second record replaces the first rather than adding to it', () async {
+      await recordRemoteCheckAt(databasePath: databasePath, time: DateTime.utc(2026, 3, 1));
+      await recordRemoteCheckAt(databasePath: databasePath, time: DateTime.utc(2026, 3, 5));
+
+      expect(await lastRemoteCheckAt(databasePath: databasePath), _isAtSameMomentAs(DateTime.utc(2026, 3, 5)));
+    });
+  });
 }
+
+Matcher _isAtSameMomentAs(DateTime expected) => predicate<DateTime>((actual) => actual.isAtSameMomentAs(expected));

@@ -224,14 +224,182 @@ class RuleFilesCompanion extends UpdateCompanion<RuleFile> {
   }
 }
 
+class $RemoteSyncStateTable extends RemoteSyncState with TableInfo<$RemoteSyncStateTable, RemoteSyncStateData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RemoteSyncStateTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastCheckedAtMeta = const VerificationMeta('lastCheckedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastCheckedAt = GeneratedColumn<DateTime>(
+    'last_checked_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, lastCheckedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'remote_sync_state';
+  @override
+  VerificationContext validateIntegrity(Insertable<RemoteSyncStateData> instance, {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('last_checked_at')) {
+      context.handle(
+        _lastCheckedAtMeta,
+        lastCheckedAt.isAcceptableOrUnknown(data['last_checked_at']!, _lastCheckedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_lastCheckedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RemoteSyncStateData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RemoteSyncStateData(
+      id: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      lastCheckedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_checked_at'],
+      )!,
+    );
+  }
+
+  @override
+  $RemoteSyncStateTable createAlias(String alias) {
+    return $RemoteSyncStateTable(attachedDatabase, alias);
+  }
+}
+
+class RemoteSyncStateData extends DataClass implements Insertable<RemoteSyncStateData> {
+  /// Always `0`: this table never carries more than one row.
+  final int id;
+
+  /// When the last check happened, whether or not it found the corpus
+  /// reachable.
+  final DateTime lastCheckedAt;
+  const RemoteSyncStateData({required this.id, required this.lastCheckedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['last_checked_at'] = Variable<DateTime>(lastCheckedAt);
+    return map;
+  }
+
+  RemoteSyncStateCompanion toCompanion(bool nullToAbsent) {
+    return RemoteSyncStateCompanion(id: Value(id), lastCheckedAt: Value(lastCheckedAt));
+  }
+
+  factory RemoteSyncStateData.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RemoteSyncStateData(
+      id: serializer.fromJson<int>(json['id']),
+      lastCheckedAt: serializer.fromJson<DateTime>(json['lastCheckedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'lastCheckedAt': serializer.toJson<DateTime>(lastCheckedAt),
+    };
+  }
+
+  RemoteSyncStateData copyWith({int? id, DateTime? lastCheckedAt}) =>
+      RemoteSyncStateData(id: id ?? this.id, lastCheckedAt: lastCheckedAt ?? this.lastCheckedAt);
+  RemoteSyncStateData copyWithCompanion(RemoteSyncStateCompanion data) {
+    return RemoteSyncStateData(
+      id: data.id.present ? data.id.value : this.id,
+      lastCheckedAt: data.lastCheckedAt.present ? data.lastCheckedAt.value : this.lastCheckedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RemoteSyncStateData(')
+          ..write('id: $id, ')
+          ..write('lastCheckedAt: $lastCheckedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, lastCheckedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RemoteSyncStateData && other.id == this.id && other.lastCheckedAt == this.lastCheckedAt);
+}
+
+class RemoteSyncStateCompanion extends UpdateCompanion<RemoteSyncStateData> {
+  final Value<int> id;
+  final Value<DateTime> lastCheckedAt;
+  const RemoteSyncStateCompanion({this.id = const Value.absent(), this.lastCheckedAt = const Value.absent()});
+  RemoteSyncStateCompanion.insert({this.id = const Value.absent(), required DateTime lastCheckedAt})
+    : lastCheckedAt = Value(lastCheckedAt);
+  static Insertable<RemoteSyncStateData> custom({Expression<int>? id, Expression<DateTime>? lastCheckedAt}) {
+    return RawValuesInsertable({if (id != null) 'id': id, if (lastCheckedAt != null) 'last_checked_at': lastCheckedAt});
+  }
+
+  RemoteSyncStateCompanion copyWith({Value<int>? id, Value<DateTime>? lastCheckedAt}) {
+    return RemoteSyncStateCompanion(id: id ?? this.id, lastCheckedAt: lastCheckedAt ?? this.lastCheckedAt);
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (lastCheckedAt.present) {
+      map['last_checked_at'] = Variable<DateTime>(lastCheckedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RemoteSyncStateCompanion(')
+          ..write('id: $id, ')
+          ..write('lastCheckedAt: $lastCheckedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RulesDatabase extends GeneratedDatabase {
   _$RulesDatabase(QueryExecutor e) : super(e);
   $RulesDatabaseManager get managers => $RulesDatabaseManager(this);
   late final $RuleFilesTable ruleFiles = $RuleFilesTable(this);
+  late final $RemoteSyncStateTable remoteSyncState = $RemoteSyncStateTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [ruleFiles];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [ruleFiles, remoteSyncState];
 }
 
 typedef $$RuleFilesTableCreateCompanionBuilder =
@@ -357,9 +525,113 @@ typedef $$RuleFilesTableProcessedTableManager =
       RuleFile,
       PrefetchHooks Function()
     >;
+typedef $$RemoteSyncStateTableCreateCompanionBuilder =
+    RemoteSyncStateCompanion Function({Value<int> id, required DateTime lastCheckedAt});
+typedef $$RemoteSyncStateTableUpdateCompanionBuilder =
+    RemoteSyncStateCompanion Function({Value<int> id, Value<DateTime> lastCheckedAt});
+
+class $$RemoteSyncStateTableFilterComposer extends Composer<_$RulesDatabase, $RemoteSyncStateTable> {
+  $$RemoteSyncStateTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastCheckedAt =>
+      $composableBuilder(column: $table.lastCheckedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$RemoteSyncStateTableOrderingComposer extends Composer<_$RulesDatabase, $RemoteSyncStateTable> {
+  $$RemoteSyncStateTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastCheckedAt =>
+      $composableBuilder(column: $table.lastCheckedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$RemoteSyncStateTableAnnotationComposer extends Composer<_$RulesDatabase, $RemoteSyncStateTable> {
+  $$RemoteSyncStateTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastCheckedAt =>
+      $composableBuilder(column: $table.lastCheckedAt, builder: (column) => column);
+}
+
+class $$RemoteSyncStateTableTableManager
+    extends
+        RootTableManager<
+          _$RulesDatabase,
+          $RemoteSyncStateTable,
+          RemoteSyncStateData,
+          $$RemoteSyncStateTableFilterComposer,
+          $$RemoteSyncStateTableOrderingComposer,
+          $$RemoteSyncStateTableAnnotationComposer,
+          $$RemoteSyncStateTableCreateCompanionBuilder,
+          $$RemoteSyncStateTableUpdateCompanionBuilder,
+          (RemoteSyncStateData, BaseReferences<_$RulesDatabase, $RemoteSyncStateTable, RemoteSyncStateData>),
+          RemoteSyncStateData,
+          PrefetchHooks Function()
+        > {
+  $$RemoteSyncStateTableTableManager(_$RulesDatabase db, $RemoteSyncStateTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () => $$RemoteSyncStateTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () => $$RemoteSyncStateTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () => $$RemoteSyncStateTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({Value<int> id = const Value.absent(), Value<DateTime> lastCheckedAt = const Value.absent()}) =>
+                  RemoteSyncStateCompanion(id: id, lastCheckedAt: lastCheckedAt),
+          createCompanionCallback: ({Value<int> id = const Value.absent(), required DateTime lastCheckedAt}) =>
+              RemoteSyncStateCompanion.insert(id: id, lastCheckedAt: lastCheckedAt),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RemoteSyncStateTable, RemoteSyncStateData>(table),
+                  BaseReferences<_$RulesDatabase, $RemoteSyncStateTable, RemoteSyncStateData>(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RemoteSyncStateTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RulesDatabase,
+      $RemoteSyncStateTable,
+      RemoteSyncStateData,
+      $$RemoteSyncStateTableFilterComposer,
+      $$RemoteSyncStateTableOrderingComposer,
+      $$RemoteSyncStateTableAnnotationComposer,
+      $$RemoteSyncStateTableCreateCompanionBuilder,
+      $$RemoteSyncStateTableUpdateCompanionBuilder,
+      (RemoteSyncStateData, BaseReferences<_$RulesDatabase, $RemoteSyncStateTable, RemoteSyncStateData>),
+      RemoteSyncStateData,
+      PrefetchHooks Function()
+    >;
 
 class $RulesDatabaseManager {
   final _$RulesDatabase _db;
   $RulesDatabaseManager(this._db);
   $$RuleFilesTableTableManager get ruleFiles => $$RuleFilesTableTableManager(_db, _db.ruleFiles);
+  $$RemoteSyncStateTableTableManager get remoteSyncState =>
+      $$RemoteSyncStateTableTableManager(_db, _db.remoteSyncState);
 }

@@ -154,6 +154,33 @@ String get rulesDatabasePath => (context.get<RulesDatabasePath>() ?? RulesDataba
 
 String get _defaultRulesDatabasePath => _dpwDataPath(envVariable: 'DPW_RULES_DATABASE', filename: 'rules.sqlite3');
 
+/// How long a remote update check, once made, holds off the next one.
+///
+/// Wrapped rather than looked up through a raw [Duration], so a test
+/// overriding it never risks colliding with an unrelated one a future
+/// override might register.
+class RemoteUpdateCheckInterval {
+  /// Wraps [duration], the answer [remoteUpdateCheckInterval] should give
+  /// for this run.
+  const RemoteUpdateCheckInterval(this.duration);
+
+  /// The interval this run holds a check off for.
+  final Duration duration;
+}
+
+/// How long this run holds a remote update check off for, a day unless
+/// overridden.
+Duration get remoteUpdateCheckInterval =>
+    (context.get<RemoteUpdateCheckInterval>() ?? RemoteUpdateCheckInterval(_defaultRemoteUpdateCheckInterval)).duration;
+
+Duration get _defaultRemoteUpdateCheckInterval {
+  if (Platform.environment['DPW_UPDATE_CHECK_INTERVAL_SECONDS'] case final String overridden
+      when overridden.isNotEmpty) {
+    return Duration(seconds: int.parse(overridden));
+  }
+  return const Duration(days: 1);
+}
+
 String _dpwDataPath({required String envVariable, required String filename}) {
   if (Platform.environment[envVariable] case final String overridden when overridden.isNotEmpty) {
     return overridden;

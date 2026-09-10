@@ -38,43 +38,44 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import '../base/common.dart';
-import '../globals.dart' as globals;
-import '../mcp_config.dart';
-import '../rules/database.dart';
-import '../rules/sync.dart';
-import '../runner/dpw_command.dart';
+import 'database.dart';
+import 'remote.dart';
+import 'sync.dart';
 
-/// Syncs the shared rules database from this checkout, ensures this
-/// project's customization stubs exist, and declares dpw's MCP server in
-/// `.mcp.json`.
-class InitCommand extends DpwCommand {
-  @override
-  final name = 'init';
+/// Checks the public corpus for updates when [interval] has passed since the
+/// last check, refreshing the shared database and [projectRoot]'s
+/// `.claude/dpw/` when it finds any. A database that has never been checked
+/// counts as checked at the epoch, so it is always due.
+///
+/// Silent by design. Offline, or a check that is not due yet, are the
+/// expected common case, not a failure to report: this never throws and
+/// never prints anything on its own. The last-checked time is written
+/// whether or not the fetch succeeds, so a machine that stays offline for a
+/// while pays the network timeout at most once per [interval], not on every
+/// single command.
+///
+/// Returns whether a real update was applied, so a caller can decide
+/// whether that is worth telling the user about.
+///
+/// [remoteSource] overrides where the corpus is fetched from; a test uses it
+/// to point at a fixture server instead of the public corpus.
+Future<bool> maybeCheckForRemoteUpdates({
+  required String rulesDatabasePath,
+  required Directory projectRoot,
+  required Duration interval,
+  Uri? remoteSource,
+}) async {
+  final lastChecked =
+      await lastRemoteCheckAt(databasePath: rulesDatabasePath) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  final now = DateTime.now();
+  if (now.difference(lastChecked) < interval) return false;
 
-  @override
-  final description = 'Sync the shared rules database from this checkout and declare the mcp server.';
+  await recordRemoteCheckAt(databasePath: rulesDatabasePath, time: now);
 
-  @override
-  Future<DpwCommandResult> runCommand() async {
-    final cwd = globals.projectRoot;
-    globals.logger.printStatus('dpw: this project is ${await globals.projectId}');
+  final remote = await fetchRemoteCorpus(source: remoteSource);
+  if (remote == null) return false;
 
-    final rulesSource = globals.rulesSource;
-    if (rulesSource == null) {
-      throwToolExit('dpw: no rules directory found next to this tool');
-    }
-
-    await syncRulesDatabase(databasePath: globals.rulesDatabasePath, contents: collectRuleContents(rulesSource));
-    globals.logger.printStatus('dpw: shared rules synced into ${globals.rulesDatabasePath}');
-
-    final projectFilesDest = Directory(p.join(cwd.path, '.claude', 'dpw'));
-    syncProjectFiles(contents: collectProjectContents(rulesSource), destination: projectFilesDest);
-    globals.logger.printStatus('dpw: customization stubs ensured in ${projectFilesDest.path}');
-
-    ensureMcpServerDeclared(cwd);
-    globals.logger.printStatus('dpw: declared the mcp server in .mcp.json');
-
-    return const DpwCommandResult.success();
-  }
+  await syncRulesDatabase(databasePath: rulesDatabasePath, contents: remote.global);
+  syncProjectFiles(contents: remote.project, destination: Directory(p.join(projectRoot.path, '.claude', 'dpw')));
+  return true;
 }

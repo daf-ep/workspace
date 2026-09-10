@@ -61,14 +61,35 @@ class RuleFiles extends Table {
   Set<Column> get primaryKey => {name, type};
 }
 
+/// When this machine last checked the public corpus for updates, a single
+/// row keyed by [id], always `0`.
+class RemoteSyncState extends Table {
+  /// Always `0`: this table never carries more than one row.
+  IntColumn get id => integer().withDefault(const Constant(0))();
+
+  /// When the last check happened, whether or not it found the corpus
+  /// reachable.
+  DateTimeColumn get lastCheckedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// The database every project on this machine shares, holding one copy of
 /// the corpus instead of one copy per project.
-@DriftDatabase(tables: [RuleFiles])
+@DriftDatabase(tables: [RuleFiles, RemoteSyncState])
 class RulesDatabase extends _$RulesDatabase {
   RulesDatabase._(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (migrator, from, to) async {
+      if (from < 2) await migrator.createTable(remoteSyncState);
+    },
+  );
 }
 
 /// Replaces every row in [databasePath] with [contents], keyed by the
@@ -120,6 +141,31 @@ Future<List<({String type, String name})>> listRules({required String databasePa
         return byType != 0 ? byType : a.name.compareTo(b.name);
       });
     return entries;
+  } finally {
+    await database.close();
+  }
+}
+
+/// When this machine last checked the public corpus for updates, or null
+/// when it never has.
+Future<DateTime?> lastRemoteCheckAt({required String databasePath}) async {
+  final database = _open(databasePath);
+  try {
+    final row = await (database.select(database.remoteSyncState)..where((r) => r.id.equals(0))).getSingleOrNull();
+    return row?.lastCheckedAt;
+  } finally {
+    await database.close();
+  }
+}
+
+/// Records [time] as the last moment this machine checked the public corpus
+/// for updates.
+Future<void> recordRemoteCheckAt({required String databasePath, required DateTime time}) async {
+  final database = _open(databasePath);
+  try {
+    await database
+        .into(database.remoteSyncState)
+        .insertOnConflictUpdate(RemoteSyncStateCompanion.insert(id: const Value(0), lastCheckedAt: time));
   } finally {
     await database.close();
   }
