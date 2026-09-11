@@ -3,7 +3,7 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
-    target-branch: main
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -13,7 +13,7 @@ updates:
 
   - package-ecosystem: pub
     directory: /cli
-    target-branch: main
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
