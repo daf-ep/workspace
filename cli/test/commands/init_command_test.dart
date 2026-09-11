@@ -58,8 +58,7 @@ void main() {
     addTearDown(() => workspace.deleteSync(recursive: true));
     addTearDown(() => rulesStoreRoot.deleteSync(recursive: true));
 
-    final remote = await createBareRemote(workspace);
-    await initFakeGitRepo(project, remote: remote.path);
+    await initFakeGitRepo(project);
 
     final buffer = BufferLogger();
 
@@ -84,7 +83,6 @@ void main() {
     expect(buffer.statusText, contains('customization stubs ensured'));
     expect(buffer.statusText, contains('declared the mcp server'));
     expect(buffer.statusText, contains('declared the context hooks'));
-    expect(buffer.statusText, contains('dpw-context branch is ready on origin'));
     expect(readRule(storeRoot: rulesStoreRoot, name: 'rules', type: 'rules'), isNotNull);
     expect(File(p.join(project.path, '.claude', 'dpw', 'push.md')).existsSync(), isTrue);
     expect(File(p.join(project.path, '.mcp.json')).existsSync(), isTrue);
@@ -94,8 +92,5 @@ void main() {
     final settings =
         jsonDecode(File(p.join(project.path, '.claude', 'settings.json')).readAsStringSync()) as Map<String, dynamic>;
     expect((settings['hooks'] as Map<String, dynamic>).keys, containsAll(['SessionStart', 'UserPromptSubmit', 'Stop']));
-
-    final branchTip = await Process.run('git', ['-C', remote.path, 'rev-parse', '--verify', '--quiet', 'dpw-context']);
-    expect((branchTip.stdout as String).trim(), isNotEmpty);
   });
 }

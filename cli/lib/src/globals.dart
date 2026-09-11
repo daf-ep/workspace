@@ -36,7 +36,6 @@
 
 library;
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -45,7 +44,6 @@ import 'auth/session_store.dart';
 import 'base/common.dart';
 import 'base/context.dart';
 import 'base/logger.dart';
-import 'context/encryption.dart';
 import 'git_identity.dart';
 import 'rules/sync.dart';
 
@@ -179,72 +177,6 @@ Duration get remoteUpdateCheckInterval =>
 
 Duration get _defaultRemoteUpdateCheckInterval =>
     _durationFromEnv(envVariable: 'DPW_UPDATE_CHECK_INTERVAL_SECONDS', defaultValue: const Duration(days: 1));
-
-/// The path to this project's context database, holding the raw hook
-/// payloads a Claude Code session generates while working here.
-///
-/// Local to the project rather than shared across every project the way
-/// [rulesStoreRoot] and [decisionsDatabasePath] are: it belongs to this
-/// project's own history on [contextBranch], not to this machine.
-String get contextDatabasePath => p.join(projectRoot.path, '.claude', 'context');
-
-/// How long a context push, once made, holds off the next one.
-///
-/// Wrapped rather than looked up through a raw [Duration], so a test
-/// overriding it never risks colliding with an unrelated one a future
-/// override might register.
-class ContextPushInterval {
-  /// Wraps [duration], the answer [contextPushInterval] should give for
-  /// this run.
-  const ContextPushInterval(this.duration);
-
-  /// The interval this run holds a push off for.
-  final Duration duration;
-}
-
-/// How long this run holds a context push off for, five minutes unless
-/// overridden.
-Duration get contextPushInterval =>
-    (context.get<ContextPushInterval>() ?? ContextPushInterval(_defaultContextPushInterval)).duration;
-
-Duration get _defaultContextPushInterval =>
-    _durationFromEnv(envVariable: 'DPW_CONTEXT_PUSH_INTERVAL_SECONDS', defaultValue: const Duration(minutes: 5));
-
-/// The key this project's context database is encrypted under.
-///
-/// Wrapped rather than looked up through a raw nullable `List<int>`, so a
-/// test overriding it never risks colliding with an unrelated one a future
-/// override might register.
-class ContextEncryptionKey {
-  /// Wraps [bytes], the answer [contextEncryptionKeyBytes] should give for
-  /// this run.
-  const ContextEncryptionKey(this.bytes);
-
-  /// The key this run's context database is encrypted under, or null when
-  /// no key is configured: context capture stays off until one is.
-  final List<int>? bytes;
-}
-
-/// The key this run's context database is encrypted under, or null when
-/// `DPW_CONTEXT_KEY` is not set.
-List<int>? get contextEncryptionKeyBytes =>
-    (context.get<ContextEncryptionKey>() ?? ContextEncryptionKey(_contextEncryptionKeyFromEnv)).bytes;
-
-List<int>? get _contextEncryptionKeyFromEnv {
-  final encoded = Platform.environment['DPW_CONTEXT_KEY'];
-  if (encoded == null || encoded.isEmpty) return null;
-
-  final List<int> bytes;
-  try {
-    bytes = base64Decode(encoded);
-  } on FormatException {
-    throwToolExit('dpw: DPW_CONTEXT_KEY is not valid base64.');
-  }
-  if (bytes.length != contextKeyLength) {
-    throwToolExit('dpw: DPW_CONTEXT_KEY must decode to $contextKeyLength bytes, got ${bytes.length}.');
-  }
-  return bytes;
-}
 
 /// Where this run's stored dpw session lives.
 ///

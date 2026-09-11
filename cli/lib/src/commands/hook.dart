@@ -34,26 +34,22 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import 'dart:convert';
 import 'dart:io';
 
-import '../context/constants.dart';
-import '../context/database.dart';
-import '../context/maybe_push.dart';
-import '../globals.dart' as globals;
 import '../runner/dpw_command.dart';
 
-/// Records one Claude Code hook's raw stdin payload, and pushes the context
-/// database to its orphan branch when a push is due.
+/// Records one Claude Code hook event, for later processing.
 ///
 /// This is what `.claude/settings.json` calls for `SessionStart`,
 /// `UserPromptSubmit` and `Stop`, one event name per registration. Never
 /// fails: a hook Claude Code is waiting on has no use for an error from a
 /// capture mechanism that is not part of what the user asked it to do.
 ///
-/// Does nothing at all when `DPW_CONTEXT_KEY` is not set: the database is
-/// encrypted, and this never writes a single byte of it unencrypted, so
-/// with no key there is nothing safe for it to do.
+/// Capture is being rebuilt against dpw's backend, sealed per-event
+/// encryption instead of a symmetric key shared by hand, no push into this
+/// project's own git history. Nothing is recorded anywhere until that
+/// lands: this drains its stdin payload, so Claude Code never blocks
+/// writing one, and otherwise does nothing with it.
 class HookCommand extends DpwCommand {
   @override
   final name = 'hook';
@@ -66,33 +62,7 @@ class HookCommand extends DpwCommand {
 
   @override
   Future<DpwCommandResult> runCommand() async {
-    await _captureAndMaybePush();
+    await stdin.drain<void>();
     return const DpwCommandResult.success();
-  }
-
-  Future<void> _captureAndMaybePush() async {
-    try {
-      final keyBytes = globals.contextEncryptionKeyBytes;
-      if (keyBytes == null) return;
-
-      final arguments = argResults?.rest ?? const <String>[];
-      if (arguments.isEmpty) return;
-      final event = arguments.first;
-
-      final payload = await stdin.transform(utf8.decoder).join();
-      final databasePath = globals.contextDatabasePath;
-      await recordRawEvent(databasePath: databasePath, keyBytes: keyBytes, hookEvent: event, payload: payload);
-
-      await maybePushContext(
-        projectRoot: globals.projectRoot,
-        branch: contextBranch,
-        databasePath: databasePath,
-        keyBytes: keyBytes,
-        fileName: contextFileName,
-        interval: globals.contextPushInterval,
-      );
-    } catch (_) {
-      return;
-    }
   }
 }

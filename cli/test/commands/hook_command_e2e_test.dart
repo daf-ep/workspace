@@ -37,125 +37,62 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:cli/src/context/encryption.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 
 import '../support/fake_git_repo.dart';
 
-final _keyBytes = List<int>.filled(contextKeyLength, 7);
-final _encodedKey = base64Encode(_keyBytes);
-
 void main() {
-  late Directory workspace;
   late Directory project;
   late String binPath;
 
   setUp(() {
-    workspace = Directory.systemTemp.createTempSync('dpw_hook_command_e2e_');
-    project = Directory(p.join(workspace.path, 'project'))..createSync();
+    project = Directory.systemTemp.createTempSync('dpw_hook_command_e2e_');
     binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
   });
 
-  tearDown(() => workspace.deleteSync(recursive: true));
+  tearDown(() => project.deleteSync(recursive: true));
 
-  test('records the payload it receives on stdin, under the event name given', () async {
+  test('succeeds without a stored session, since it never calls the backend', () async {
     await initFakeGitRepo(project);
 
-    final exitCode = await _runHook(
-      binPath,
-      project,
-      event: 'stop',
-      payload: '{"last_assistant_message":"done"}',
-      environment: {'DPW_CONTEXT_KEY': _encodedKey, 'DPW_CONTEXT_PUSH_INTERVAL_SECONDS': '315360000000'},
-    );
+    final exitCode = await _runHook(binPath, project, event: 'stop', payload: '{"last_assistant_message":"done"}');
 
     expect(exitCode, 0);
-
-    final rows = await lastRawEventsForTest(p.join(project.path, '.claude', 'context'));
-    expect(rows, hasLength(1));
-    expect(rows.first.$1, 'stop');
-    expect(rows.first.$2, '{"last_assistant_message":"done"}');
   });
 
-  test('does nothing, successfully, when called with no event name', () async {
+  test('succeeds and writes nothing, called with no event name', () async {
     await initFakeGitRepo(project);
 
-    final exitCode = await _runHook(
-      binPath,
-      project,
-      event: null,
-      payload: '{}',
-      environment: {'DPW_CONTEXT_KEY': _encodedKey},
-    );
+    final exitCode = await _runHook(binPath, project, event: null, payload: '{}');
 
     expect(exitCode, 0);
     expect(File(p.join(project.path, '.claude', 'context')).existsSync(), isFalse);
   });
 
-  test('does nothing, successfully, when DPW_CONTEXT_KEY is not set', () async {
-    await initFakeGitRepo(project);
-
+  test('succeeds and writes nothing outside a git repository either', () async {
     final exitCode = await _runHook(binPath, project, event: 'stop', payload: '{}');
 
     expect(exitCode, 0);
     expect(File(p.join(project.path, '.claude', 'context')).existsSync(), isFalse);
   });
 
-  test('pushes the context database to its branch when a push is due', () async {
-    final remote = await createBareRemote(workspace);
-    await initFakeGitRepo(project, remote: remote.path);
+  test('drains a payload larger than a pipe buffer without blocking', () async {
+    await initFakeGitRepo(project);
+    final largePayload = '{"transcript":"${'x' * (256 * 1024)}"}';
 
-    final exitCode = await _runHook(
-      binPath,
-      project,
-      event: 'session-start',
-      payload: '{"session_start_reason":"startup"}',
-      environment: {'DPW_CONTEXT_KEY': _encodedKey, 'DPW_CONTEXT_PUSH_INTERVAL_SECONDS': '0'},
-    );
+    final exitCode = await _runHook(binPath, project, event: 'stop', payload: largePayload);
 
     expect(exitCode, 0);
-
-    final tip = await Process.run('git', ['-C', remote.path, 'rev-parse', '--verify', '--quiet', 'dpw-context']);
-    expect((tip.stdout as String).trim(), isNotEmpty);
   });
 }
 
-/// The (event, payload) pairs [databasePath] holds, decrypted under the
-/// test's own key: what a real caller would only ever get through
-/// `dpw hook`, read back here to prove it landed correctly.
-Future<List<(String, String)>> lastRawEventsForTest(String databasePath) async {
-  final plainBytes = await decryptContext(File(databasePath).readAsBytesSync(), keyBytes: _keyBytes);
-  final scratch = Directory.systemTemp.createTempSync('dpw_hook_e2e_verify_');
-  final plainFile = File(p.join(scratch.path, 'context.sqlite3'))..writeAsBytesSync(plainBytes!);
-  try {
-    final db = sqlite3.open(plainFile.path);
-    try {
-      return [
-        for (final row in db.select('SELECT hook_event, payload FROM raw_events'))
-          (row['hook_event'] as String, row['payload'] as String),
-      ];
-    } finally {
-      db.close();
-    }
-  } finally {
-    scratch.deleteSync(recursive: true);
-  }
-}
-
-Future<int> _runHook(
-  String binPath,
-  Directory project, {
-  required String? event,
-  required String payload,
-  Map<String, String> environment = const {},
-}) async {
+Future<int> _runHook(String binPath, Directory project, {required String? event, required String payload}) async {
   final process = await Process.start(
     Platform.resolvedExecutable,
     ['run', binPath, 'hook', ?event],
     workingDirectory: project.path,
-    environment: {'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000', ...environment},
+    environment: {'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
   );
 
   process.stdin.write(payload);

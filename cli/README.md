@@ -26,9 +26,8 @@ not shared: `init` ensures each of its files exists under this project's
 `init` also declares `dpw`'s MCP server in `.mcp.json`, adding or replacing
 only its own entry and leaving every other server a project declared for
 itself alone. It declares `dpw`'s hooks in `.claude/settings.json` the same
-way, adds `.claude/context` to `.gitignore`, and prepares the project's
-`dpw-context` branch, an orphan with no history shared with any other
-branch, the way `gh-pages` is for built docs.
+way, and adds `.claude/context` to `.gitignore` for whatever local file a
+future capture mechanism writes there.
 
 `dpw` only works inside a git repository whose `origin` remote points at
 GitHub or GitLab: the project's id is `host/owner/repo`, taken from that
@@ -44,14 +43,13 @@ every project, at `$HOME/.local/share/dpw/decisions.sqlite3` unless
 `DPW_DECISIONS_DATABASE` says otherwise, tagged with the project's git-derived
 id.
 
-`hook` records one Claude Code hook event's raw stdin payload into this
-project's own context database, `.claude/context`, and pushes that database
-to `dpw-context` when a push is due. It is not meant to be run by hand
-either: `init` wires it into `SessionStart`, `UserPromptSubmit` and `Stop`
-in `.claude/settings.json`. Every payload lands verbatim in a `raw_events`
-table, unparsed: what a session said and what Claude answered is captured
-now, and read later, by a processing pass this does not do yet. It does
-nothing at all, capturing or pushing, when `DPW_CONTEXT_KEY` is not set.
+`hook` is wired into `SessionStart`, `UserPromptSubmit` and `Stop` in
+`.claude/settings.json` by `init`, and is not meant to be run by hand. It
+currently does nothing beyond draining its stdin payload: the session
+capture it used to write into a project-local encrypted database and push
+to a `dpw-context` branch has been retired, in favor of a design where a
+CLI-side account can never itself read what it captures. See "Capturing
+session context" below for where that stands.
 
 ## Logging in
 
@@ -73,36 +71,19 @@ does, and adds any new `project/` file to the current project's
 reach GitHub, or that runs before the interval has passed, is silent: dpw
 tries again next time, and no command ever fails because of it.
 
-## Pushing captured context
+## Capturing session context
 
-A `hook` call that finds a push due commits `.claude/context` onto
-`dpw-context` and pushes it to `origin`, at most once every five minutes
-unless `DPW_CONTEXT_PUSH_INTERVAL_SECONDS` says otherwise. The commit is
-built by plumbing, `hash-object`, `mktree`, `commit-tree`, parented on
-whatever `dpw-context` currently points to on `origin`, so this project's own
-working tree and index are never touched: no branch switch, no checkout, the
-way a bot deploys to `gh-pages` without ever checking it out. A push that
-cannot reach `origin`, or that loses a race against a teammate's push, is
-silent, the same way the rules corpus's own update check is: the next `hook`
-call tries again.
-
-## Encrypting captured context
-
-`.claude/context` is never written to disk, or pushed to `dpw-context`, as a
-plain sqlite file: every byte of it, local copy and pushed copy alike, is
-AES-256-GCM ciphertext under `DPW_CONTEXT_KEY`, a key that lives nowhere in
-this repository or in dpw's own source. `dpw hook` decrypts it into a
-throwaway file for the moment it needs to read or write a row, then
-re-encrypts and discards that file; nothing else, a text editor, a generic
-`sqlite3` client, a GitHub file viewer, ever sees more than opaque bytes.
-
-`DPW_CONTEXT_KEY` is 32 random bytes, base64-encoded, generated once (`openssl
-rand -base64 32` works) and handed to every teammate who should be able to
-read this project's captured context, the same way any other shared secret
-is: a password manager, a secrets vault, never committed. Without it, `dpw
-init` says so and capture stays off; with the wrong one, `dpw hook` finds
-nothing decodable and records nothing rather than starting the database over
-from empty.
+Session capture used to work by encrypting `.claude/context`, a project-local
+sqlite database, under a symmetric key shared by hand between teammates
+(`DPW_CONTEXT_KEY`), then pushing it to `dpw-context`, an orphan branch on
+`origin` with no history shared with any other branch. That key let anyone
+holding it, including the person captured, decrypt their own capture, which
+does not fit an account model where a session's owner should not need to be
+trusted with the ability to read it back. `dpw hook` is retired to draining
+its stdin payload until the replacement, sealing each event under a public
+key only `dpw`'s backend can decrypt and syncing it there over an
+authenticated connection rather than through this project's own git history,
+is built.
 
 ## Running it from source
 

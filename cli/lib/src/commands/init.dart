@@ -39,8 +39,6 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../base/common.dart';
-import '../context/constants.dart';
-import '../context/orphan_branch.dart';
 import '../gitignore.dart';
 import '../globals.dart' as globals;
 import '../mcp_config.dart';
@@ -82,17 +80,6 @@ class InitCommand extends DpwCommand {
     ensureGitignored(cwd, '.claude/context');
     ensureHooksDeclared(cwd);
     globals.logger.printStatus('dpw: declared the context hooks in .claude/settings.json');
-
-    try {
-      await ensureOrphanBranch(projectRoot: cwd, branch: contextBranch);
-      globals.logger.printStatus('dpw: the $contextBranch branch is ready on origin');
-    } on ToolExit {
-      globals.logger.printStatus('dpw: could not reach origin to prepare $contextBranch, will retry later');
-    }
-
-    if (globals.contextEncryptionKeyBytes == null) {
-      globals.logger.printStatus('dpw: DPW_CONTEXT_KEY is not set, session capture stays off until it is');
-    }
 
     return const DpwCommandResult.success();
   }
