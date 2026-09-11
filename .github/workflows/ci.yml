@@ -2,7 +2,7 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
 
 permissions:
@@ -13,41 +13,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      trivial: ${{ steps.diff.outputs.trivial }}
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
-
-      - name: Say whether every changed file is documentation
-        id: diff
-        env:
-          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          set -eu
-
-          case "$BASE" in
-            "" | 0000000000000000000000000000000000000000)
-              echo "trivial=false" >> "$GITHUB_OUTPUT"
-              echo "nothing to diff against, so this counts as not trivial"
-              exit 0
-              ;;
-          esac
-
-          changed=$(git diff --name-only "$BASE" "${{ github.sha }}")
-          echo "$changed"
-
-          if echo "$changed" | grep -vqE '\.md$'; then
-            echo "trivial=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "trivial=true" >> "$GITHUB_OUTPUT"
-            echo "only markdown changed, skipping the header check and the Dart suite"
-          fi
-
   commits:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -63,8 +28,6 @@ jobs:
         run: bash .github/commits/check.sh "$BASE" "$HEAD"
 
   headers:
-    needs: changes
-    if: needs.changes.outputs.trivial != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -74,8 +37,6 @@ jobs:
         run: bash .github/headers/check.sh
 
   verify:
-    needs: changes
-    if: needs.changes.outputs.trivial != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
