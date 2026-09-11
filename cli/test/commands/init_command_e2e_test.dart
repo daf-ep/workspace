@@ -66,6 +66,7 @@ void main() {
     expect(File(p.join(project.path, '.claude', 'dpw', 'push.md')).existsSync(), isTrue);
     expect(File(p.join(project.path, '.gitignore')).readAsStringSync(), contains('.claude/context'));
     expect(File(p.join(project.path, '.claude', 'settings.json')).existsSync(), isTrue);
+    expect(result.stdout, contains('DPW_CONTEXT_KEY is not set'));
 
     final mcpConfig = jsonDecode(File(p.join(project.path, '.mcp.json')).readAsStringSync()) as Map<String, dynamic>;
     final servers = mcpConfig['mcpServers'] as Map<String, dynamic>;
@@ -89,6 +90,24 @@ void main() {
 
     expect(result.exitCode, isNot(0));
     expect(result.stderr, contains('not a git repository'));
+  });
+
+  test('refuses a malformed DPW_CONTEXT_KEY rather than silently disabling capture', () async {
+    final project = Directory.systemTemp.createTempSync('dafep_e2e_bad_key_');
+    addTearDown(() => project.deleteSync(recursive: true));
+    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/init-e2e-bad-key.git');
+
+    final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
+
+    final result = await Process.run(
+      Platform.resolvedExecutable,
+      ['run', binPath, 'init'],
+      workingDirectory: project.path,
+      environment: {'DPW_CONTEXT_KEY': 'too-short', 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
+    );
+
+    expect(result.exitCode, isNot(0));
+    expect(result.stderr, contains('DPW_CONTEXT_KEY'));
   });
 
   test('refuses a remote hosted anywhere but GitHub or GitLab', () async {

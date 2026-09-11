@@ -34,40 +34,37 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import 'dart:io';
+import 'package:cryptography/cryptography.dart';
 
-import 'database.dart';
-import 'push.dart';
+/// How many bytes [decryptContext] expects a key to be: 256 bits, what
+/// [_algorithm] is keyed with.
+const int contextKeyLength = 32;
 
-/// Pushes the context database at [databasePath], encrypted under
-/// [keyBytes], to [branch] when [interval] has passed since the last push.
-/// A database that has never been pushed counts as pushed at the epoch, so
-/// it is always due.
+AesGcm get _algorithm => AesGcm.with256bits();
+
+/// Encrypts [plainBytes] under [keyBytes], returning nonce, ciphertext and
+/// authentication tag concatenated into one blob: everything [decryptContext]
+/// needs, and nothing a reader without [keyBytes] can make sense of.
 ///
-/// Silent by design, the same way the rules corpus's own update check is:
-/// a push that is not due yet, or that fails, offline or racing a teammate,
-/// is the expected common case, not a failure to report. The last-pushed
-/// time is written whether or not the push succeeds, so a machine offline
-/// for a while pays the attempt at most once per [interval].
-Future<bool> maybePushContext({
-  required Directory projectRoot,
-  required String branch,
-  required String databasePath,
-  required List<int> keyBytes,
-  required String fileName,
-  required Duration interval,
-}) async {
-  final last =
-      await lastPushedAt(databasePath: databasePath, keyBytes: keyBytes) ?? DateTime.fromMillisecondsSinceEpoch(0);
-  final now = DateTime.now();
-  if (now.difference(last) < interval) return false;
+/// A fresh, random nonce is drawn for every call, so encrypting the same
+/// bytes twice never produces the same blob twice.
+Future<List<int>> encryptContext(List<int> plainBytes, {required List<int> keyBytes}) async {
+  final secretBox = await _algorithm.encrypt(plainBytes, secretKey: SecretKey(keyBytes));
+  return secretBox.concatenation();
+}
 
-  await recordPushedAt(databasePath: databasePath, keyBytes: keyBytes, time: now);
-
-  return pushContextDatabase(
-    projectRoot: projectRoot,
-    branch: branch,
-    databaseFile: File(databasePath),
-    fileName: fileName,
-  );
+/// Decrypts a blob [encryptContext] produced under [keyBytes], or returns
+/// null when [keyBytes] is wrong or [blob] was tampered with or corrupted:
+/// the authentication tag [encryptContext] embeds catches both.
+Future<List<int>?> decryptContext(List<int> blob, {required List<int> keyBytes}) async {
+  try {
+    final secretBox = SecretBox.fromConcatenation(
+      blob,
+      nonceLength: _algorithm.nonceLength,
+      macLength: _algorithm.macAlgorithm.macLength,
+    );
+    return await _algorithm.decrypt(secretBox, secretKey: SecretKey(keyBytes));
+  } catch (_) {
+    return null;
+  }
 }

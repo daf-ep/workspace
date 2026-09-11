@@ -50,6 +50,10 @@ import '../runner/dpw_command.dart';
 /// `UserPromptSubmit` and `Stop`, one event name per registration. Never
 /// fails: a hook Claude Code is waiting on has no use for an error from a
 /// capture mechanism that is not part of what the user asked it to do.
+///
+/// Does nothing at all when `DPW_CONTEXT_KEY` is not set: the database is
+/// encrypted, and this never writes a single byte of it unencrypted, so
+/// with no key there is nothing safe for it to do.
 class HookCommand extends DpwCommand {
   @override
   final name = 'hook';
@@ -65,18 +69,22 @@ class HookCommand extends DpwCommand {
 
   Future<void> _captureAndMaybePush() async {
     try {
+      final keyBytes = globals.contextEncryptionKeyBytes;
+      if (keyBytes == null) return;
+
       final arguments = argResults?.rest ?? const <String>[];
       if (arguments.isEmpty) return;
       final event = arguments.first;
 
       final payload = await stdin.transform(utf8.decoder).join();
       final databasePath = globals.contextDatabasePath;
-      recordRawEvent(databasePath: databasePath, hookEvent: event, payload: payload);
+      await recordRawEvent(databasePath: databasePath, keyBytes: keyBytes, hookEvent: event, payload: payload);
 
       await maybePushContext(
         projectRoot: globals.projectRoot,
         branch: contextBranch,
         databasePath: databasePath,
+        keyBytes: keyBytes,
         fileName: contextFileName,
         interval: globals.contextPushInterval,
       );

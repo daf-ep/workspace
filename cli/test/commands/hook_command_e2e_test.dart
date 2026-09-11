@@ -37,11 +37,15 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cli/src/context/encryption.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 
 import '../support/fake_git_repo.dart';
+
+final _keyBytes = List<int>.filled(contextKeyLength, 7);
+final _encodedKey = base64Encode(_keyBytes);
 
 void main() {
   late Directory workspace;
@@ -64,24 +68,36 @@ void main() {
       project,
       event: 'stop',
       payload: '{"last_assistant_message":"done"}',
-      environment: {'DPW_CONTEXT_PUSH_INTERVAL_SECONDS': '315360000000'},
+      environment: {'DPW_CONTEXT_KEY': _encodedKey, 'DPW_CONTEXT_PUSH_INTERVAL_SECONDS': '315360000000'},
     );
 
     expect(exitCode, 0);
 
-    final db = sqlite3.open(p.join(project.path, '.claude', 'context'));
-    addTearDown(db.close);
-    final rows = db.select('SELECT hook_event, payload FROM raw_events');
-
+    final rows = await lastRawEventsForTest(p.join(project.path, '.claude', 'context'));
     expect(rows, hasLength(1));
-    expect(rows.first['hook_event'], 'stop');
-    expect(rows.first['payload'], '{"last_assistant_message":"done"}');
+    expect(rows.first.$1, 'stop');
+    expect(rows.first.$2, '{"last_assistant_message":"done"}');
   });
 
   test('does nothing, successfully, when called with no event name', () async {
     await initFakeGitRepo(project);
 
-    final exitCode = await _runHook(binPath, project, event: null, payload: '{}');
+    final exitCode = await _runHook(
+      binPath,
+      project,
+      event: null,
+      payload: '{}',
+      environment: {'DPW_CONTEXT_KEY': _encodedKey},
+    );
+
+    expect(exitCode, 0);
+    expect(File(p.join(project.path, '.claude', 'context')).existsSync(), isFalse);
+  });
+
+  test('does nothing, successfully, when DPW_CONTEXT_KEY is not set', () async {
+    await initFakeGitRepo(project);
+
+    final exitCode = await _runHook(binPath, project, event: 'stop', payload: '{}');
 
     expect(exitCode, 0);
     expect(File(p.join(project.path, '.claude', 'context')).existsSync(), isFalse);
@@ -96,7 +112,7 @@ void main() {
       project,
       event: 'session-start',
       payload: '{"session_start_reason":"startup"}',
-      environment: {'DPW_CONTEXT_PUSH_INTERVAL_SECONDS': '0'},
+      environment: {'DPW_CONTEXT_KEY': _encodedKey, 'DPW_CONTEXT_PUSH_INTERVAL_SECONDS': '0'},
     );
 
     expect(exitCode, 0);
@@ -104,6 +120,28 @@ void main() {
     final tip = await Process.run('git', ['-C', remote.path, 'rev-parse', '--verify', '--quiet', 'dpw-context']);
     expect((tip.stdout as String).trim(), isNotEmpty);
   });
+}
+
+/// The (event, payload) pairs [databasePath] holds, decrypted under the
+/// test's own key: what a real caller would only ever get through
+/// `dpw hook`, read back here to prove it landed correctly.
+Future<List<(String, String)>> lastRawEventsForTest(String databasePath) async {
+  final plainBytes = await decryptContext(File(databasePath).readAsBytesSync(), keyBytes: _keyBytes);
+  final scratch = Directory.systemTemp.createTempSync('dpw_hook_e2e_verify_');
+  final plainFile = File(p.join(scratch.path, 'context.sqlite3'))..writeAsBytesSync(plainBytes!);
+  try {
+    final db = sqlite3.open(plainFile.path);
+    try {
+      return [
+        for (final row in db.select('SELECT hook_event, payload FROM raw_events'))
+          (row['hook_event'] as String, row['payload'] as String),
+      ];
+    } finally {
+      db.close();
+    }
+  } finally {
+    scratch.deleteSync(recursive: true);
+  }
 }
 
 Future<int> _runHook(

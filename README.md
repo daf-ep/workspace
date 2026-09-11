@@ -4,7 +4,7 @@
 
 Every team re-litigates the same arguments: what deserves a comment, when a test is worth writing, how a commit should read, what "good" even means before you hit push. This repo settles all of it, once, for good, and carries the answer with you from job to job instead of leaving it behind with the last company.
 
-`dafep` is a single command. Run it in any project and it wires an MCP server into that project, ready for an AI coding agent to read the full set of engineering rules from the first line, and starts capturing every session's conversation on its own branch, isolated from your code.
+`dafep` is a single command. Run it in any project and it wires an MCP server into that project, ready for an AI coding agent to read the full set of engineering rules from the first line, and starts capturing every session's conversation, encrypted, on its own branch, isolated from your code.
 
 ## Install
 

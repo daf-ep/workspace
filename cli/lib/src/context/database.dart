@@ -34,20 +34,27 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
 
-/// Records one hook's raw stdin payload in the database at [databasePath],
-/// as [hookEvent] named it, verbatim and unparsed.
+import 'encryption.dart';
+
+/// Records one hook's raw stdin payload in the encrypted database at
+/// [databasePath], as [hookEvent] named it, verbatim and unparsed.
 ///
 /// This is the table a future processing pass reads from; nothing here
 /// decides what a payload means. Creates the database and its tables the
 /// first time either is missing.
-void recordRawEvent({required String databasePath, required String hookEvent, required String payload}) {
-  final db = _open(databasePath);
-  try {
+Future<void> recordRawEvent({
+  required String databasePath,
+  required List<int> keyBytes,
+  required String hookEvent,
+  required String payload,
+}) {
+  return _withDecryptedDatabase(databasePath, keyBytes, (db) {
     db.execute('''
       CREATE TABLE IF NOT EXISTS raw_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,38 +68,69 @@ void recordRawEvent({required String databasePath, required String hookEvent, re
       payload,
       DateTime.now().toIso8601String(),
     ]);
-  } finally {
-    db.close();
-  }
+  });
 }
 
 /// When this project's context database was last pushed to its orphan
 /// branch, or null when it never has.
-DateTime? lastPushedAt({required String databasePath}) {
-  final db = _open(databasePath);
-  try {
+Future<DateTime?> lastPushedAt({required String databasePath, required List<int> keyBytes}) {
+  return _withDecryptedDatabase(databasePath, keyBytes, (db) {
     db.execute('CREATE TABLE IF NOT EXISTS push_state (id INTEGER PRIMARY KEY, pushed_at TEXT NOT NULL)');
     final rows = db.select('SELECT pushed_at FROM push_state WHERE id = 0');
     if (rows.isEmpty) return null;
     return DateTime.tryParse(rows.first['pushed_at'] as String);
-  } finally {
-    db.close();
-  }
+  });
 }
 
 /// Records [time] as the last moment this project's context database was
 /// pushed to its orphan branch.
-void recordPushedAt({required String databasePath, required DateTime time}) {
-  final db = _open(databasePath);
-  try {
+Future<void> recordPushedAt({required String databasePath, required List<int> keyBytes, required DateTime time}) {
+  return _withDecryptedDatabase(databasePath, keyBytes, (db) {
     db.execute('CREATE TABLE IF NOT EXISTS push_state (id INTEGER PRIMARY KEY, pushed_at TEXT NOT NULL)');
     db.execute('INSERT OR REPLACE INTO push_state (id, pushed_at) VALUES (0, ?)', [time.toIso8601String()]);
-  } finally {
-    db.close();
-  }
+  });
 }
 
-Database _open(String databasePath) {
-  Directory(p.dirname(databasePath)).createSync(recursive: true);
-  return sqlite3.open(databasePath);
+/// Decrypts [databasePath] into a real sqlite file only [body] ever sees,
+/// then re-encrypts whatever [body] left there back over [databasePath]:
+/// the bytes on disk, before and after, are never anything but ciphertext.
+///
+/// A [databasePath] that does not exist yet starts [body] with an empty
+/// database, the same way an ordinary sqlite path would. A [databasePath]
+/// that exists but does not decrypt under [keyBytes], wrong key or a
+/// tampered file, throws rather than silently starting [body] from empty:
+/// losing every row already recorded is worse than failing loudly.
+Future<T> _withDecryptedDatabase<T>(
+  String databasePath,
+  List<int> keyBytes,
+  FutureOr<T> Function(Database database) body,
+) async {
+  final scratch = Directory.systemTemp.createTempSync('dpw_context_');
+  final plainFile = File(p.join(scratch.path, 'context.sqlite3'));
+  try {
+    final encryptedFile = File(databasePath);
+    if (encryptedFile.existsSync()) {
+      final plainBytes = await decryptContext(encryptedFile.readAsBytesSync(), keyBytes: keyBytes);
+      if (plainBytes == null) {
+        throw StateError('dpw: $databasePath did not decrypt under the configured key.');
+      }
+      plainFile.writeAsBytesSync(plainBytes);
+    }
+
+    final db = sqlite3.open(plainFile.path);
+    final T result;
+    try {
+      result = await body(db);
+    } finally {
+      db.close();
+    }
+
+    final newPlainBytes = plainFile.readAsBytesSync();
+    final newEncryptedBytes = await encryptContext(newPlainBytes, keyBytes: keyBytes);
+    Directory(p.dirname(databasePath)).createSync(recursive: true);
+    encryptedFile.writeAsBytesSync(newEncryptedBytes);
+    return result;
+  } finally {
+    scratch.deleteSync(recursive: true);
+  }
 }

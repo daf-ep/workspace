@@ -37,6 +37,7 @@
 import 'dart:io';
 
 import 'package:cli/src/context/database.dart';
+import 'package:cli/src/context/encryption.dart';
 import 'package:cli/src/context/maybe_push.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -48,6 +49,7 @@ void main() {
   late Directory project;
   late Directory remote;
   late String databasePath;
+  final keyBytes = List<int>.filled(contextKeyLength, 7);
 
   setUp(() async {
     workspace = Directory.systemTemp.createTempSync('dpw_maybe_push_');
@@ -55,18 +57,19 @@ void main() {
     remote = await createBareRemote(workspace);
     await initFakeGitRepo(project, remote: remote.path);
     databasePath = p.join(project.path, 'context');
-    recordRawEvent(databasePath: databasePath, hookEvent: 'stop', payload: '{}');
+    await recordRawEvent(databasePath: databasePath, keyBytes: keyBytes, hookEvent: 'stop', payload: '{}');
   });
 
   tearDown(() => workspace.deleteSync(recursive: true));
 
   test('is not due when the interval since the last push has not passed', () async {
-    recordPushedAt(databasePath: databasePath, time: DateTime.now());
+    await recordPushedAt(databasePath: databasePath, keyBytes: keyBytes, time: DateTime.now());
 
     final pushed = await maybePushContext(
       projectRoot: project,
       branch: 'dpw-context',
       databasePath: databasePath,
+      keyBytes: keyBytes,
       fileName: 'context',
       interval: const Duration(minutes: 5),
     );
@@ -79,6 +82,7 @@ void main() {
       projectRoot: project,
       branch: 'dpw-context',
       databasePath: databasePath,
+      keyBytes: keyBytes,
       fileName: 'context',
       interval: const Duration(minutes: 5),
     );
@@ -91,6 +95,7 @@ void main() {
       projectRoot: project,
       branch: 'dpw-context',
       databasePath: databasePath,
+      keyBytes: keyBytes,
       fileName: 'context',
       interval: const Duration(days: 365 * 100),
     );
@@ -103,17 +108,18 @@ void main() {
     final orphanProject = Directory(p.join(workspace.path, 'orphan_project'))..createSync();
     await initFakeGitRepo(orphanProject, remote: unreachableRemote.path);
     final orphanDatabasePath = p.join(orphanProject.path, 'context');
-    recordRawEvent(databasePath: orphanDatabasePath, hookEvent: 'stop', payload: '{}');
+    await recordRawEvent(databasePath: orphanDatabasePath, keyBytes: keyBytes, hookEvent: 'stop', payload: '{}');
 
     final pushed = await maybePushContext(
       projectRoot: orphanProject,
       branch: 'dpw-context',
       databasePath: orphanDatabasePath,
+      keyBytes: keyBytes,
       fileName: 'context',
       interval: Duration.zero,
     );
 
     expect(pushed, isFalse);
-    expect(lastPushedAt(databasePath: orphanDatabasePath), isNotNull);
+    expect(await lastPushedAt(databasePath: orphanDatabasePath, keyBytes: keyBytes), isNotNull);
   });
 }

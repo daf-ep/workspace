@@ -34,9 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cli/src/context/database.dart';
+import 'package:cli/src/context/encryption.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
@@ -44,6 +46,7 @@ import 'package:test/test.dart';
 void main() {
   late Directory directory;
   late String databasePath;
+  final keyBytes = List<int>.filled(contextKeyLength, 7);
 
   setUp(() {
     directory = Directory.systemTemp.createTempSync('dpw_context_database_');
@@ -52,45 +55,86 @@ void main() {
 
   tearDown(() => directory.deleteSync(recursive: true));
 
-  test('records a raw event exactly as given, unparsed', () {
-    recordRawEvent(databasePath: databasePath, hookEvent: 'stop', payload: '{"last_assistant_message":"hi"}');
+  test('records a raw event exactly as given, unparsed', () async {
+    await recordRawEvent(
+      databasePath: databasePath,
+      keyBytes: keyBytes,
+      hookEvent: 'stop',
+      payload: '{"last_assistant_message":"hi"}',
+    );
 
-    final db = sqlite3.open(databasePath);
-    addTearDown(db.close);
-    final rows = db.select('SELECT hook_event, payload FROM raw_events');
+    final rows = await _selectDecrypted(databasePath, keyBytes, 'SELECT hook_event, payload FROM raw_events');
 
     expect(rows, hasLength(1));
     expect(rows.first['hook_event'], 'stop');
     expect(rows.first['payload'], '{"last_assistant_message":"hi"}');
   });
 
-  test('keeps every recorded event, not just the last one', () {
-    recordRawEvent(databasePath: databasePath, hookEvent: 'session-start', payload: '{}');
-    recordRawEvent(databasePath: databasePath, hookEvent: 'user-prompt-submit', payload: '{"prompt":"hello"}');
+  test('keeps every recorded event, not just the last one', () async {
+    await recordRawEvent(databasePath: databasePath, keyBytes: keyBytes, hookEvent: 'session-start', payload: '{}');
+    await recordRawEvent(
+      databasePath: databasePath,
+      keyBytes: keyBytes,
+      hookEvent: 'user-prompt-submit',
+      payload: '{"prompt":"hello"}',
+    );
 
-    final db = sqlite3.open(databasePath);
-    addTearDown(db.close);
-    expect(db.select('SELECT * FROM raw_events'), hasLength(2));
+    final rows = await _selectDecrypted(databasePath, keyBytes, 'SELECT * FROM raw_events');
+    expect(rows, hasLength(2));
+  });
+
+  test('the bytes on disk never contain the plain payload', () async {
+    const payload = 'a very specific secret the file must never show in the clear';
+    await recordRawEvent(databasePath: databasePath, keyBytes: keyBytes, hookEvent: 'stop', payload: payload);
+
+    final onDisk = utf8.decode(File(databasePath).readAsBytesSync(), allowMalformed: true);
+    expect(onDisk, isNot(contains(payload)));
+  });
+
+  test('a wrong key cannot read what the right key wrote', () async {
+    await recordRawEvent(databasePath: databasePath, keyBytes: keyBytes, hookEvent: 'stop', payload: '{}');
+
+    final wrongKey = List<int>.filled(contextKeyLength, 9);
+    await expectLater(
+      recordRawEvent(databasePath: databasePath, keyBytes: wrongKey, hookEvent: 'stop', payload: '{}'),
+      throwsA(isA<StateError>()),
+    );
   });
 
   group('last pushed time', () {
-    test('is null before any push was ever recorded', () {
-      expect(lastPushedAt(databasePath: databasePath), isNull);
+    test('is null before any push was ever recorded', () async {
+      expect(await lastPushedAt(databasePath: databasePath, keyBytes: keyBytes), isNull);
     });
 
-    test('reads back the exact time a push was recorded at', () {
+    test('reads back the exact time a push was recorded at', () async {
       final pushedAt = DateTime.utc(2026, 3, 5, 12, 30);
 
-      recordPushedAt(databasePath: databasePath, time: pushedAt);
+      await recordPushedAt(databasePath: databasePath, keyBytes: keyBytes, time: pushedAt);
 
-      expect(lastPushedAt(databasePath: databasePath), pushedAt);
+      expect(await lastPushedAt(databasePath: databasePath, keyBytes: keyBytes), pushedAt);
     });
 
-    test('a second record replaces the first rather than adding to it', () {
-      recordPushedAt(databasePath: databasePath, time: DateTime.utc(2026, 3, 1));
-      recordPushedAt(databasePath: databasePath, time: DateTime.utc(2026, 3, 5));
+    test('a second record replaces the first rather than adding to it', () async {
+      await recordPushedAt(databasePath: databasePath, keyBytes: keyBytes, time: DateTime.utc(2026, 3, 1));
+      await recordPushedAt(databasePath: databasePath, keyBytes: keyBytes, time: DateTime.utc(2026, 3, 5));
 
-      expect(lastPushedAt(databasePath: databasePath), DateTime.utc(2026, 3, 5));
+      expect(await lastPushedAt(databasePath: databasePath, keyBytes: keyBytes), DateTime.utc(2026, 3, 5));
     });
   });
+}
+
+Future<List<Row>> _selectDecrypted(String databasePath, List<int> keyBytes, String query) async {
+  final plainBytes = await decryptContext(File(databasePath).readAsBytesSync(), keyBytes: keyBytes);
+  final scratch = Directory.systemTemp.createTempSync('dpw_context_verify_');
+  final plainFile = File(p.join(scratch.path, 'context.sqlite3'))..writeAsBytesSync(plainBytes!);
+  try {
+    final db = sqlite3.open(plainFile.path);
+    try {
+      return db.select(query);
+    } finally {
+      db.close();
+    }
+  } finally {
+    scratch.deleteSync(recursive: true);
+  }
 }

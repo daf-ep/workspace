@@ -90,6 +90,10 @@ class InitCommand extends DpwCommand {
       globals.logger.printStatus('dpw: could not reach origin to prepare $contextBranch, will retry later');
     }
 
+    if (globals.contextEncryptionKeyBytes == null) {
+      globals.logger.printStatus('dpw: DPW_CONTEXT_KEY is not set, session capture stays off until it is');
+    }
+
     return const DpwCommandResult.success();
   }
 }

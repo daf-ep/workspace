@@ -36,6 +36,7 @@
 
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -43,6 +44,7 @@ import 'package:path/path.dart' as p;
 import 'base/common.dart';
 import 'base/context.dart';
 import 'base/logger.dart';
+import 'context/encryption.dart';
 import 'git_identity.dart';
 import 'rules/sync.dart';
 
@@ -206,6 +208,42 @@ Duration get contextPushInterval =>
 
 Duration get _defaultContextPushInterval =>
     _durationFromEnv(envVariable: 'DPW_CONTEXT_PUSH_INTERVAL_SECONDS', defaultValue: const Duration(minutes: 5));
+
+/// The key this project's context database is encrypted under.
+///
+/// Wrapped rather than looked up through a raw nullable `List<int>`, so a
+/// test overriding it never risks colliding with an unrelated one a future
+/// override might register.
+class ContextEncryptionKey {
+  /// Wraps [bytes], the answer [contextEncryptionKeyBytes] should give for
+  /// this run.
+  const ContextEncryptionKey(this.bytes);
+
+  /// The key this run's context database is encrypted under, or null when
+  /// no key is configured: context capture stays off until one is.
+  final List<int>? bytes;
+}
+
+/// The key this run's context database is encrypted under, or null when
+/// `DPW_CONTEXT_KEY` is not set.
+List<int>? get contextEncryptionKeyBytes =>
+    (context.get<ContextEncryptionKey>() ?? ContextEncryptionKey(_contextEncryptionKeyFromEnv)).bytes;
+
+List<int>? get _contextEncryptionKeyFromEnv {
+  final encoded = Platform.environment['DPW_CONTEXT_KEY'];
+  if (encoded == null || encoded.isEmpty) return null;
+
+  final List<int> bytes;
+  try {
+    bytes = base64Decode(encoded);
+  } on FormatException {
+    throwToolExit('dpw: DPW_CONTEXT_KEY is not valid base64.');
+  }
+  if (bytes.length != contextKeyLength) {
+    throwToolExit('dpw: DPW_CONTEXT_KEY must decode to $contextKeyLength bytes, got ${bytes.length}.');
+  }
+  return bytes;
+}
 
 Duration _durationFromEnv({required String envVariable, required Duration defaultValue}) {
   if (Platform.environment[envVariable] case final String overridden when overridden.isNotEmpty) {
