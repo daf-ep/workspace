@@ -34,21 +34,22 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import 'dart:io';
+import 'package:cli/src/auth/git_host.dart';
+import 'package:test/test.dart';
 
-import 'package:cli/runner.dart' as runner;
-import 'package:cli/src/commands/hook.dart';
-import 'package:cli/src/commands/init.dart';
-import 'package:cli/src/commands/login.dart';
-import 'package:cli/src/commands/logout.dart';
-import 'package:cli/src/commands/mcp.dart';
-import 'package:cli/src/runner/dpw_command.dart';
+void main() {
+  test('parses the wire names dpw\'s backend and OAuth providers use', () {
+    expect(GitHost.parse('github'), GitHost.github);
+    expect(GitHost.parse('gitlab'), GitHost.gitlab);
+  });
 
-Future<void> main(List<String> args) async {
-  final int code = await runner.run(
-    args,
-    () => <DpwCommand>[LoginCommand(), LogoutCommand(), InitCommand(), McpCommand(), HookCommand()],
-  );
+  test('parses neither a stranger nor null to a host', () {
+    expect(GitHost.parse('bitbucket'), isNull);
+    expect(GitHost.parse(null), isNull);
+  });
 
-  if (code != 0) exit(code);
+  test('labels read as a human names the host', () {
+    expect(GitHost.github.label, 'GitHub');
+    expect(GitHost.gitlab.label, 'GitLab');
+  });
 }

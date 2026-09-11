@@ -34,21 +34,30 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import 'dart:io';
+/// The git hosts a dpw account can be linked through.
+///
+/// Both `dpw login` and [gitProjectId]'s own host check name only these two:
+/// switching on this enum instead of a raw string means a third host, if
+/// one is ever added, is a compiler error everywhere it still needs
+/// handling, not a silent gap.
+enum GitHost {
+  /// github.com.
+  github,
 
-import 'package:cli/runner.dart' as runner;
-import 'package:cli/src/commands/hook.dart';
-import 'package:cli/src/commands/init.dart';
-import 'package:cli/src/commands/login.dart';
-import 'package:cli/src/commands/logout.dart';
-import 'package:cli/src/commands/mcp.dart';
-import 'package:cli/src/runner/dpw_command.dart';
+  /// gitlab.com, or a self-managed instance dpw's backend points at.
+  gitlab;
 
-Future<void> main(List<String> args) async {
-  final int code = await runner.run(
-    args,
-    () => <DpwCommand>[LoginCommand(), LogoutCommand(), InitCommand(), McpCommand(), HookCommand()],
-  );
+  /// How this host reads in a sentence: "GitHub", "GitLab".
+  String get label => switch (this) {
+    GitHost.github => 'GitHub',
+    GitHost.gitlab => 'GitLab',
+  };
 
-  if (code != 0) exit(code);
+  /// The host named the way it is written on the wire ("github", "gitlab"),
+  /// or null when [wireName] names neither.
+  static GitHost? parse(String? wireName) => switch (wireName) {
+    'github' => GitHost.github,
+    'gitlab' => GitHost.gitlab,
+    _ => null,
+  };
 }

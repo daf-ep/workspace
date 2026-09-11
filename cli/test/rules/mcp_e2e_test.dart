@@ -43,6 +43,7 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../support/fake_git_repo.dart';
+import '../support/fake_session.dart';
 
 void main() {
   test('a real client can read the synced rules corpus through get_rule and list_rules', () async {
@@ -64,7 +65,11 @@ void main() {
       Platform.resolvedExecutable,
       ['run', binPath, 'mcp'],
       workingDirectory: project.path,
-      environment: {'DPW_RULES_DIR': rulesStoreRoot.path, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
+      environment: {
+        'DPW_RULES_DIR': rulesStoreRoot.path,
+        'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
+        'DPW_CREDENTIALS_PATH': writeFakeSession(rulesStoreRoot),
+      },
     );
     addTearDown(process.kill);
 

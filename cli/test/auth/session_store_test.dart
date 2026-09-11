@@ -36,19 +36,57 @@
 
 import 'dart:io';
 
-import 'package:cli/runner.dart' as runner;
-import 'package:cli/src/commands/hook.dart';
-import 'package:cli/src/commands/init.dart';
-import 'package:cli/src/commands/login.dart';
-import 'package:cli/src/commands/logout.dart';
-import 'package:cli/src/commands/mcp.dart';
-import 'package:cli/src/runner/dpw_command.dart';
+import 'package:cli/src/auth/git_host.dart';
+import 'package:cli/src/auth/session_store.dart';
+import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
 
-Future<void> main(List<String> args) async {
-  final int code = await runner.run(
-    args,
-    () => <DpwCommand>[LoginCommand(), LogoutCommand(), InitCommand(), McpCommand(), HookCommand()],
-  );
+void main() {
+  late Directory workspace;
 
-  if (code != 0) exit(code);
+  setUp(() => workspace = Directory.systemTemp.createTempSync('dpw_session_store_'));
+  tearDown(() => workspace.deleteSync(recursive: true));
+
+  test('reads back exactly what was saved', () {
+    final store = SessionStore(p.join(workspace.path, 'credentials'));
+    const session = StoredSession(token: 'abc123', host: GitHost.gitlab, login: 'octocat');
+
+    store.save(session);
+    final read = store.read();
+
+    expect(read?.token, 'abc123');
+    expect(read?.host, GitHost.gitlab);
+    expect(read?.login, 'octocat');
+  });
+
+  test('a session file is not left world-readable', () {
+    if (Platform.isWindows) return;
+
+    final path = p.join(workspace.path, 'credentials');
+    SessionStore(path).save(const StoredSession(token: 'abc123', host: GitHost.github, login: 'octocat'));
+
+    final mode = File(path).statSync().modeString();
+    expect(mode, 'rw-------');
+  });
+
+  test('reads as logged out when nothing was ever saved', () {
+    expect(SessionStore(p.join(workspace.path, 'credentials')).read(), isNull);
+  });
+
+  test('reads as logged out rather than throwing on a corrupt file', () {
+    final path = p.join(workspace.path, 'credentials');
+    File(path).writeAsStringSync('not json');
+
+    expect(SessionStore(path).read(), isNull);
+  });
+
+  test('clear forgets a saved session, and is a no-op without one', () {
+    final path = p.join(workspace.path, 'credentials');
+    final store = SessionStore(path);
+    store.save(const StoredSession(token: 'abc123', host: GitHost.github, login: 'octocat'));
+
+    store.clear();
+    expect(store.read(), isNull);
+    expect(() => store.clear(), returnsNormally);
+  });
 }

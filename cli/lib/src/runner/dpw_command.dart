@@ -36,6 +36,7 @@
 
 import 'package:args/command_runner.dart';
 
+import '../base/common.dart';
 import '../globals.dart' as globals;
 import '../rules/update_check.dart';
 
@@ -78,12 +79,26 @@ abstract class DpwCommand extends Command<int> {
     return globals.context.run<int>(
       name: name,
       body: () async {
+        if (requiresAuthentication && globals.storedSession == null) {
+          throwToolExit('dpw: not logged in. Run `dpw login` first.');
+        }
+
         final DpwCommandResult result = await runCommand();
         await _checkForRemoteUpdates();
         return result.exitStatus == ExitStatus.success ? 0 : 1;
       },
     );
   }
+
+  /// Whether this command refuses to run at all without a stored session.
+  ///
+  /// True for every command but `login` and `logout`, which have to work
+  /// with no session yet to be the way one is obtained or cleared, and
+  /// `hook`: that command is invoked by Claude Code itself, never directly
+  /// by whoever is or isn't logged in, and its own contract is to never
+  /// fail regardless of the reason, so it decides for itself, inside its
+  /// own guarded body, what a missing session means.
+  bool get requiresAuthentication => true;
 
   /// Runs the best-effort remote update check, swallowing whatever it
   /// throws.

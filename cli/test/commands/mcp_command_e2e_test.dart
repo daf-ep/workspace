@@ -43,6 +43,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 
 import '../support/fake_git_repo.dart';
+import '../support/fake_session.dart';
 
 void main() {
   test('a real client can call record_decision and it lands in sqlite', () async {
@@ -60,7 +61,11 @@ void main() {
       Platform.resolvedExecutable,
       ['run', binPath, 'mcp'],
       workingDirectory: project.path,
-      environment: {'DPW_DECISIONS_DATABASE': databasePath, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
+      environment: {
+        'DPW_DECISIONS_DATABASE': databasePath,
+        'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
+        'DPW_CREDENTIALS_PATH': writeFakeSession(databaseDir),
+      },
     );
     addTearDown(process.kill);
 

@@ -41,6 +41,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'auth/session_store.dart';
 import 'base/common.dart';
 import 'base/context.dart';
 import 'base/logger.dart';
@@ -244,6 +245,118 @@ List<int>? get _contextEncryptionKeyFromEnv {
   }
   return bytes;
 }
+
+/// Where this run's stored dpw session lives.
+///
+/// Wrapped rather than looked up through a raw [String], so a test
+/// overriding it never risks colliding with an unrelated one a future
+/// override might register.
+class CredentialsPath {
+  /// Wraps [path], the answer [credentialsPath] should give for this run.
+  const CredentialsPath(this.path);
+
+  /// The file this run's stored session lives at.
+  final String path;
+}
+
+/// The path `dpw login` writes to and every other command reads from.
+String get credentialsPath => (context.get<CredentialsPath>() ?? CredentialsPath(_defaultCredentialsPath)).path;
+
+String get _defaultCredentialsPath => _dpwDataPath(envVariable: 'DPW_CREDENTIALS_PATH', filename: 'credentials');
+
+/// The session this run is authenticated under.
+///
+/// Wrapped rather than looked up through a raw nullable [StoredSession], so
+/// a test overriding it never risks colliding with an unrelated one a
+/// future override might register, and so [DpwCommand.run] reads the store
+/// at most once per run instead of hitting disk again for every command
+/// that needs it.
+class StoredCredentials {
+  /// Wraps [session], the answer [storedSession] should give for this run.
+  const StoredCredentials(this.session);
+
+  /// The session this run found on disk, or null when there is none.
+  final StoredSession? session;
+}
+
+/// The session this run is authenticated under, or null when `dpw login`
+/// was never run on this machine, or `dpw logout` cleared it.
+StoredSession? get storedSession =>
+    (context.get<StoredCredentials>() ?? StoredCredentials(SessionStore(credentialsPath).read())).session;
+
+/// Where dpw's backend API lives.
+///
+/// Wrapped rather than looked up through a raw [String], so a test
+/// overriding it never risks colliding with an unrelated one a future
+/// override might register.
+class BackendBaseUrl {
+  /// Wraps [url], the answer [backendBaseUrl] should give for this run.
+  const BackendBaseUrl(this.url);
+
+  /// Where this run's backend calls go.
+  final String url;
+}
+
+/// Where this run's backend calls go, `http://localhost:8080` unless
+/// `DPW_BACKEND_URL` says otherwise.
+String get backendBaseUrl =>
+    (context.get<BackendBaseUrl>() ??
+            BackendBaseUrl(Platform.environment['DPW_BACKEND_URL'] ?? 'http://localhost:8080'))
+        .url;
+
+/// Wraps the answer [githubOAuthClientId] should give for this run, kept
+/// apart from [GitLabOAuthClientId] so overriding one host's client id in a
+/// test never overrides the other's too.
+class GitHubOAuthClientId {
+  /// Wraps [value], the answer [githubOAuthClientId] should give for this
+  /// run.
+  const GitHubOAuthClientId(this.value);
+
+  /// This run's GitHub client id, or null when unset.
+  final String? value;
+}
+
+/// The OAuth client id `dpw login` presents to GitHub, or null when
+/// `DPW_GITHUB_CLIENT_ID` is not set.
+String? get githubOAuthClientId =>
+    (context.get<GitHubOAuthClientId>() ?? GitHubOAuthClientId(Platform.environment['DPW_GITHUB_CLIENT_ID'])).value;
+
+/// Wraps the answer [gitlabOAuthClientId] should give for this run, kept
+/// apart from [GitHubOAuthClientId] so overriding one host's client id in a
+/// test never overrides the other's too.
+class GitLabOAuthClientId {
+  /// Wraps [value], the answer [gitlabOAuthClientId] should give for this
+  /// run.
+  const GitLabOAuthClientId(this.value);
+
+  /// This run's GitLab client id, or null when unset.
+  final String? value;
+}
+
+/// The OAuth client id `dpw login` presents to GitLab, or null when
+/// `DPW_GITLAB_CLIENT_ID` is not set.
+String? get gitlabOAuthClientId =>
+    (context.get<GitLabOAuthClientId>() ?? GitLabOAuthClientId(Platform.environment['DPW_GITLAB_CLIENT_ID'])).value;
+
+/// Where this run's GitLab instance lives for the sake of `dpw login`,
+/// `https://gitlab.com` unless `DPW_GITLAB_BASE_URL` says otherwise.
+///
+/// Wrapped rather than looked up through a raw [String], so a test
+/// overriding it never risks colliding with an unrelated one a future
+/// override might register.
+class GitLabOAuthBaseUrl {
+  /// Wraps [url], the answer [gitlabOAuthBaseUrl] should give for this run.
+  const GitLabOAuthBaseUrl(this.url);
+
+  /// This run's GitLab base url.
+  final String url;
+}
+
+/// Where this run logs into GitLab through.
+String get gitlabOAuthBaseUrl =>
+    (context.get<GitLabOAuthBaseUrl>() ??
+            GitLabOAuthBaseUrl(Platform.environment['DPW_GITLAB_BASE_URL'] ?? 'https://gitlab.com'))
+        .url;
 
 Duration _durationFromEnv({required String envVariable, required Duration defaultValue}) {
   if (Platform.environment[envVariable] case final String overridden when overridden.isNotEmpty) {

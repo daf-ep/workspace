@@ -2,6 +2,20 @@
 
 ## Commands
 
+`login` links this machine to a dpw account through GitHub or GitLab: pick a
+host, or pass `--provider github|gitlab` to skip the menu, and dpw runs that
+host's OAuth Device Authorization Grant, opening the browser on its own. dpw's
+backend is asked who the resulting access token belongs to exactly once, and
+the session it hands back is stored at `$HOME/.local/share/dpw/credentials`
+unless `DPW_CREDENTIALS_PATH` says otherwise, restricted to this account's own
+read and write wherever `chmod` applies. `logout` forgets it again, and is a
+no-op when there was nothing to forget.
+
+Every other command refuses to run at all without a session stored, `dpw
+login` first is how it says so, except `hook`: that one is invoked by Claude
+Code itself rather than by whoever is or isn't logged in, and its own
+contract is to never fail regardless of the reason.
+
 `init` syncs `global/`, at the `rules/` checkout next to this package, into a
 single store every project on the machine shares, at
 `$HOME/.local/share/dpw/rules/` unless `DPW_RULES_DIR` says otherwise. A
@@ -38,6 +52,15 @@ in `.claude/settings.json`. Every payload lands verbatim in a `raw_events`
 table, unparsed: what a session said and what Claude answered is captured
 now, and read later, by a processing pass this does not do yet. It does
 nothing at all, capturing or pushing, when `DPW_CONTEXT_KEY` is not set.
+
+## Logging in
+
+`dpw login` needs an OAuth client id per host, `DPW_GITHUB_CLIENT_ID` and
+`DPW_GITLAB_CLIENT_ID`: public identifiers for dpw's own OAuth apps, safe to
+ship inside the CLI, never a secret the way a client secret would be. A
+self-managed GitLab instance is named through `DPW_GITLAB_BASE_URL`,
+`https://gitlab.com` otherwise. `DPW_BACKEND_URL` says where dpw's backend
+API lives, `http://localhost:8080` otherwise.
 
 ## Checking for updates
 

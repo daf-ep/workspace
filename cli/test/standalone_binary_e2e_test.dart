@@ -45,6 +45,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 
 import 'support/fake_git_repo.dart';
+import 'support/fake_session.dart';
 
 void main() {
   // sqlite3 ships as a native asset, which `dart compile exe` cannot embed:
@@ -91,7 +92,11 @@ void main() {
       executablePath,
       ['init'],
       workingDirectory: project.path,
-      environment: {'DPW_RULES_DIR': rulesStoreRoot.path, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
+      environment: {
+        'DPW_RULES_DIR': rulesStoreRoot.path,
+        'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
+        'DPW_CREDENTIALS_PATH': writeFakeSession(rulesStoreRoot),
+      },
     );
 
     expect(result.exitCode, 0, reason: result.stderr.toString());
@@ -110,7 +115,11 @@ void main() {
       executablePath,
       ['mcp'],
       workingDirectory: project.path,
-      environment: {'DPW_DECISIONS_DATABASE': databasePath, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
+      environment: {
+        'DPW_DECISIONS_DATABASE': databasePath,
+        'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
+        'DPW_CREDENTIALS_PATH': writeFakeSession(project),
+      },
     );
     addTearDown(process.kill);
 

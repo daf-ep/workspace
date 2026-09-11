@@ -42,6 +42,7 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../support/fake_git_repo.dart';
+import '../support/fake_session.dart';
 
 void main() {
   test('running init syncs the shared rules store and .mcp.json for real, in a real git repo', () async {
@@ -57,7 +58,11 @@ void main() {
       Platform.resolvedExecutable,
       ['run', binPath, 'init'],
       workingDirectory: project.path,
-      environment: {'DPW_RULES_DIR': rulesStoreRoot.path, 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
+      environment: {
+        'DPW_RULES_DIR': rulesStoreRoot.path,
+        'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
+        'DPW_CREDENTIALS_PATH': writeFakeSession(rulesStoreRoot),
+      },
     );
 
     expect(result.exitCode, 0, reason: result.stderr.toString());
@@ -82,11 +87,12 @@ void main() {
 
     final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
 
-    final result = await Process.run(Platform.resolvedExecutable, [
-      'run',
-      binPath,
-      'init',
-    ], workingDirectory: project.path);
+    final result = await Process.run(
+      Platform.resolvedExecutable,
+      ['run', binPath, 'init'],
+      workingDirectory: project.path,
+      environment: {'DPW_CREDENTIALS_PATH': writeFakeSession(project)},
+    );
 
     expect(result.exitCode, isNot(0));
     expect(result.stderr, contains('not a git repository'));
@@ -103,7 +109,11 @@ void main() {
       Platform.resolvedExecutable,
       ['run', binPath, 'init'],
       workingDirectory: project.path,
-      environment: {'DPW_CONTEXT_KEY': 'too-short', 'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
+      environment: {
+        'DPW_CONTEXT_KEY': 'too-short',
+        'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
+        'DPW_CREDENTIALS_PATH': writeFakeSession(project),
+      },
     );
 
     expect(result.exitCode, isNot(0));
@@ -117,13 +127,32 @@ void main() {
 
     final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
 
-    final result = await Process.run(Platform.resolvedExecutable, [
-      'run',
-      binPath,
-      'init',
-    ], workingDirectory: project.path);
+    final result = await Process.run(
+      Platform.resolvedExecutable,
+      ['run', binPath, 'init'],
+      workingDirectory: project.path,
+      environment: {'DPW_CREDENTIALS_PATH': writeFakeSession(project)},
+    );
 
     expect(result.exitCode, isNot(0));
     expect(result.stderr, contains('only GitHub and GitLab'));
+  });
+
+  test('refuses to run at all without a stored session', () async {
+    final project = Directory.systemTemp.createTempSync('dafep_e2e_no_session_');
+    addTearDown(() => project.deleteSync(recursive: true));
+    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/init-e2e-no-session.git');
+
+    final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
+
+    final result = await Process.run(
+      Platform.resolvedExecutable,
+      ['run', binPath, 'init'],
+      workingDirectory: project.path,
+      environment: {'DPW_CREDENTIALS_PATH': p.join(project.path, 'no-credentials-here')},
+    );
+
+    expect(result.exitCode, isNot(0));
+    expect(result.stderr, contains('not logged in'));
   });
 }

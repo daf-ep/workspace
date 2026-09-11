@@ -37,6 +37,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cli/src/auth/git_host.dart';
+import 'package:cli/src/auth/session_store.dart';
 import 'package:cli/src/base/context.dart';
 import 'package:cli/src/base/logger.dart';
 import 'package:cli/src/commands/init.dart';
@@ -70,6 +72,8 @@ void main() {
         GitProjectId: () => const GitProjectId('github.com/dpw-tests/init-command-test'),
         RulesStoreRoot: () => RulesStoreRoot(rulesStoreRoot),
         RemoteUpdateCheckInterval: () => const RemoteUpdateCheckInterval(Duration(days: 365 * 100)),
+        StoredCredentials: () =>
+            const StoredCredentials(StoredSession(token: 'test-token', host: GitHost.github, login: 'dpw-tests')),
       },
     );
 

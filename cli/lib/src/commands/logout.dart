@@ -34,65 +34,30 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import 'dart:convert';
-import 'dart:io';
-
-import '../context/constants.dart';
-import '../context/database.dart';
-import '../context/maybe_push.dart';
+import '../auth/session_store.dart';
 import '../globals.dart' as globals;
 import '../runner/dpw_command.dart';
 
-/// Records one Claude Code hook's raw stdin payload, and pushes the context
-/// database to its orphan branch when a push is due.
+/// Forgets this machine's stored dpw session.
 ///
-/// This is what `.claude/settings.json` calls for `SessionStart`,
-/// `UserPromptSubmit` and `Stop`, one event name per registration. Never
-/// fails: a hook Claude Code is waiting on has no use for an error from a
-/// capture mechanism that is not part of what the user asked it to do.
-///
-/// Does nothing at all when `DPW_CONTEXT_KEY` is not set: the database is
-/// encrypted, and this never writes a single byte of it unencrypted, so
-/// with no key there is nothing safe for it to do.
-class HookCommand extends DpwCommand {
+/// Idempotent: running this with nothing stored is not an error, the same
+/// way logging out of an account you were never in isn't.
+class LogoutCommand extends DpwCommand {
   @override
-  final name = 'hook';
+  final name = 'logout';
 
   @override
-  final description = "Records one Claude Code hook event's raw payload, for later processing.";
+  final description = "Forgets this machine's stored dpw session.";
 
   @override
   bool get requiresAuthentication => false;
 
   @override
   Future<DpwCommandResult> runCommand() async {
-    await _captureAndMaybePush();
+    final wasLoggedIn = globals.storedSession != null;
+    SessionStore(globals.credentialsPath).clear();
+
+    globals.logger.printStatus(wasLoggedIn ? 'dpw: logged out.' : 'dpw: was not logged in.');
     return const DpwCommandResult.success();
-  }
-
-  Future<void> _captureAndMaybePush() async {
-    try {
-      final keyBytes = globals.contextEncryptionKeyBytes;
-      if (keyBytes == null) return;
-
-      final arguments = argResults?.rest ?? const <String>[];
-      if (arguments.isEmpty) return;
-      final event = arguments.first;
-
-      final payload = await stdin.transform(utf8.decoder).join();
-      final databasePath = globals.contextDatabasePath;
-      await recordRawEvent(databasePath: databasePath, keyBytes: keyBytes, hookEvent: event, payload: payload);
-
-      await maybePushContext(
-        projectRoot: globals.projectRoot,
-        branch: contextBranch,
-        databasePath: databasePath,
-        keyBytes: keyBytes,
-        fileName: contextFileName,
-        interval: globals.contextPushInterval,
-      );
-    } catch (_) {
-      return;
-    }
   }
 }

@@ -36,19 +36,17 @@
 
 import 'dart:io';
 
-import 'package:cli/runner.dart' as runner;
-import 'package:cli/src/commands/hook.dart';
-import 'package:cli/src/commands/init.dart';
-import 'package:cli/src/commands/login.dart';
-import 'package:cli/src/commands/logout.dart';
-import 'package:cli/src/commands/mcp.dart';
-import 'package:cli/src/runner/dpw_command.dart';
+import 'package:cli/src/auth/git_host.dart';
+import 'package:cli/src/auth/session_store.dart';
+import 'package:path/path.dart' as p;
 
-Future<void> main(List<String> args) async {
-  final int code = await runner.run(
-    args,
-    () => <DpwCommand>[LoginCommand(), LogoutCommand(), InitCommand(), McpCommand(), HookCommand()],
-  );
-
-  if (code != 0) exit(code);
+/// Writes a [StoredSession] under [directory] and returns its path, ready
+/// to hand a spawned `dpw` process as `DPW_CREDENTIALS_PATH`: every command
+/// but `login`, `logout` and `hook` now refuses to run without one, and a
+/// test exercising those commands is not the place to also drive a real
+/// device login.
+String writeFakeSession(Directory directory) {
+  final path = p.join(directory.path, 'credentials');
+  SessionStore(path).save(const StoredSession(token: 'test-token', host: GitHost.github, login: 'dpw-tests'));
+  return path;
 }
