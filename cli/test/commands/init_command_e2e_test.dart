@@ -46,51 +46,51 @@ import '../support/fake_session.dart';
 
 void main() {
   test('running init syncs the shared rules store and .mcp.json for real, in a real git repo', () async {
-    final project = Directory.systemTemp.createTempSync('dafep_e2e_');
-    final rulesStoreRoot = Directory.systemTemp.createTempSync('dafep_e2e_rules_store_');
+    final project = Directory.systemTemp.createTempSync('injectable_e2e_');
+    final rulesStoreRoot = Directory.systemTemp.createTempSync('injectable_e2e_rules_store_');
     addTearDown(() => project.deleteSync(recursive: true));
     addTearDown(() => rulesStoreRoot.deleteSync(recursive: true));
-    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/init-e2e.git');
+    await initFakeGitRepo(project, remote: 'git@github.com:injectable-tests/init-e2e.git');
 
-    final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
+    final binPath = p.join(Directory.current.path, 'bin', 'injectable.dart');
 
     final result = await Process.run(
       Platform.resolvedExecutable,
       ['run', binPath, 'init'],
       workingDirectory: project.path,
       environment: {
-        'DPW_RULES_DIR': rulesStoreRoot.path,
-        'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
-        'DPW_CREDENTIALS_PATH': writeFakeSession(rulesStoreRoot),
+        'INJECTABLE_RULES_DIR': rulesStoreRoot.path,
+        'INJECTABLE_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
+        'INJECTABLE_CREDENTIALS_PATH': writeFakeSession(rulesStoreRoot),
       },
     );
 
     expect(result.exitCode, 0, reason: result.stderr.toString());
-    expect(result.stdout, contains('this project is github.com/dpw-tests/init-e2e'));
+    expect(result.stdout, contains('this project is github.com/injectable-tests/init-e2e'));
     expect(readRule(storeRoot: rulesStoreRoot, name: 'rules', type: 'rules'), isNotNull);
-    expect(File(p.join(project.path, '.claude', 'dpw', 'push.md')).existsSync(), isTrue);
+    expect(File(p.join(project.path, '.claude', 'injectable', 'push.md')).existsSync(), isTrue);
     expect(File(p.join(project.path, '.gitignore')).readAsStringSync(), contains('.claude/context'));
     expect(File(p.join(project.path, '.claude', 'settings.json')).existsSync(), isTrue);
 
     final mcpConfig = jsonDecode(File(p.join(project.path, '.mcp.json')).readAsStringSync()) as Map<String, dynamic>;
     final servers = mcpConfig['mcpServers'] as Map<String, dynamic>;
-    expect(servers['dpw-decisions'], {
-      'command': 'dpw',
+    expect(servers['injectable-decisions'], {
+      'command': 'injectable',
       'args': ['mcp'],
     });
   });
 
   test('refuses to run outside a git repository', () async {
-    final project = Directory.systemTemp.createTempSync('dafep_e2e_no_git_');
+    final project = Directory.systemTemp.createTempSync('injectable_e2e_no_git_');
     addTearDown(() => project.deleteSync(recursive: true));
 
-    final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
+    final binPath = p.join(Directory.current.path, 'bin', 'injectable.dart');
 
     final result = await Process.run(
       Platform.resolvedExecutable,
       ['run', binPath, 'init'],
       workingDirectory: project.path,
-      environment: {'DPW_CREDENTIALS_PATH': writeFakeSession(project)},
+      environment: {'INJECTABLE_CREDENTIALS_PATH': writeFakeSession(project)},
     );
 
     expect(result.exitCode, isNot(0));
@@ -98,17 +98,17 @@ void main() {
   });
 
   test('refuses a remote hosted anywhere but GitHub or GitLab', () async {
-    final project = Directory.systemTemp.createTempSync('dafep_e2e_wrong_host_');
+    final project = Directory.systemTemp.createTempSync('injectable_e2e_wrong_host_');
     addTearDown(() => project.deleteSync(recursive: true));
     await initFakeGitRepo(project, remote: 'git@bitbucket.org:someone/somewhere.git');
 
-    final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
+    final binPath = p.join(Directory.current.path, 'bin', 'injectable.dart');
 
     final result = await Process.run(
       Platform.resolvedExecutable,
       ['run', binPath, 'init'],
       workingDirectory: project.path,
-      environment: {'DPW_CREDENTIALS_PATH': writeFakeSession(project)},
+      environment: {'INJECTABLE_CREDENTIALS_PATH': writeFakeSession(project)},
     );
 
     expect(result.exitCode, isNot(0));
@@ -116,17 +116,17 @@ void main() {
   });
 
   test('refuses to run at all without a stored session', () async {
-    final project = Directory.systemTemp.createTempSync('dafep_e2e_no_session_');
+    final project = Directory.systemTemp.createTempSync('injectable_e2e_no_session_');
     addTearDown(() => project.deleteSync(recursive: true));
-    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/init-e2e-no-session.git');
+    await initFakeGitRepo(project, remote: 'git@github.com:injectable-tests/init-e2e-no-session.git');
 
-    final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
+    final binPath = p.join(Directory.current.path, 'bin', 'injectable.dart');
 
     final result = await Process.run(
       Platform.resolvedExecutable,
       ['run', binPath, 'init'],
       workingDirectory: project.path,
-      environment: {'DPW_CREDENTIALS_PATH': p.join(project.path, 'no-credentials-here')},
+      environment: {'INJECTABLE_CREDENTIALS_PATH': p.join(project.path, 'no-credentials-here')},
     );
 
     expect(result.exitCode, isNot(0));

@@ -47,18 +47,18 @@ import '../support/fake_session.dart';
 
 void main() {
   test('a real client can read the synced rules corpus through get_rule and list_rules', () async {
-    final project = Directory.systemTemp.createTempSync('dpw_rules_mcp_e2e_project_');
-    final rulesStoreRoot = Directory.systemTemp.createTempSync('dpw_rules_mcp_e2e_store_');
+    final project = Directory.systemTemp.createTempSync('injectable_rules_mcp_e2e_project_');
+    final rulesStoreRoot = Directory.systemTemp.createTempSync('injectable_rules_mcp_e2e_store_');
     addTearDown(() => project.deleteSync(recursive: true));
     addTearDown(() => rulesStoreRoot.deleteSync(recursive: true));
-    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/rules-mcp-e2e.git');
+    await initFakeGitRepo(project, remote: 'git@github.com:injectable-tests/rules-mcp-e2e.git');
 
     replaceGlobalContent(
       storeRoot: rulesStoreRoot,
       contents: {'rules.md': 'How We Work', 'common/code.md': 'Write code that reads back cleanly.'},
     );
 
-    final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
+    final binPath = p.join(Directory.current.path, 'bin', 'injectable.dart');
 
     final client = MCPClient(Implementation(name: 'rules_mcp_e2e_test', version: '0.0.1'));
     final process = await Process.start(
@@ -66,9 +66,9 @@ void main() {
       ['run', binPath, 'mcp'],
       workingDirectory: project.path,
       environment: {
-        'DPW_RULES_DIR': rulesStoreRoot.path,
-        'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
-        'DPW_CREDENTIALS_PATH': writeFakeSession(rulesStoreRoot),
+        'INJECTABLE_RULES_DIR': rulesStoreRoot.path,
+        'INJECTABLE_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
+        'INJECTABLE_CREDENTIALS_PATH': writeFakeSession(rulesStoreRoot),
       },
     );
     addTearDown(process.kill);

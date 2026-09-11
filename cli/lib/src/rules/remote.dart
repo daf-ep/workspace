@@ -40,8 +40,8 @@ import 'package:archive/archive_io.dart';
 import 'package:http/http.dart' as http;
 
 /// Where the shared rules corpus is published: the one repository every
-/// project's `dpw` checks against for updates.
-Uri get _defaultSource => Uri.https('codeload.github.com', '/daf-ep/workspace/tar.gz/refs/heads/main');
+/// project's `injectable` checks against for updates.
+Uri get _defaultSource => Uri.https('codeload.github.com', '/daf-ep/injectable/tar.gz/refs/heads/main');
 
 /// Fetches the rules corpus from [source] (the public corpus by default),
 /// split into its `global/` and `project/` content, keyed the same way

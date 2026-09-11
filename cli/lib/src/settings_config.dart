@@ -39,15 +39,15 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-/// The command dpw registers for each hook event it listens on, keyed by
+/// The command injectable registers for each hook event it listens on, keyed by
 /// the event name Claude Code fires.
 const Map<String, String> hookCommands = {
-  'SessionStart': 'dpw hook session-start',
-  'UserPromptSubmit': 'dpw hook user-prompt-submit',
-  'Stop': 'dpw hook stop',
+  'SessionStart': 'injectable hook session-start',
+  'UserPromptSubmit': 'injectable hook user-prompt-submit',
+  'Stop': 'injectable hook stop',
 };
 
-/// Declares dpw's hooks in `.claude/settings.json` under [projectRoot].
+/// Declares injectable's hooks in `.claude/settings.json` under [projectRoot].
 ///
 /// Only the matcher group carrying one of [hookCommands] is touched, added
 /// if missing and replaced if already present: every other group a project
@@ -60,7 +60,7 @@ void ensureHooksDeclared(Directory projectRoot) {
   final hooks = (config['hooks'] as Map<String, dynamic>?) ?? <String, dynamic>{};
 
   for (final entry in hookCommands.entries) {
-    hooks[entry.key] = _withDpwGroup(hooks[entry.key], command: entry.value);
+    hooks[entry.key] = _withInjectableGroup(hooks[entry.key], command: entry.value);
   }
   config['hooks'] = hooks;
 
@@ -68,7 +68,7 @@ void ensureHooksDeclared(Directory projectRoot) {
   file.writeAsStringSync('${const JsonEncoder.withIndent('  ').convert(config)}\n');
 }
 
-List<dynamic> _withDpwGroup(dynamic existingGroups, {required String command}) {
+List<dynamic> _withInjectableGroup(dynamic existingGroups, {required String command}) {
   final groups = (existingGroups as List<dynamic>?)?.cast<Map<String, dynamic>>().toList() ?? <Map<String, dynamic>>[];
 
   groups.removeWhere((group) {

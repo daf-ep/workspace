@@ -41,7 +41,7 @@ import 'package:args/command_runner.dart';
 import 'src/base/common.dart';
 import 'src/base/context.dart';
 import 'src/globals.dart' as globals;
-import 'src/runner/dpw_command.dart';
+import 'src/runner/injectable_command.dart';
 
 /// The status a command called the wrong way leaves with, as `sysexits.h` names it.
 const int kExitCodeUsage = 64;
@@ -58,12 +58,12 @@ const int kExitCodeUsage = 64;
 ///
 /// [overrides] replaces entries of the context, which is how a test runs a
 /// command against its own logger or rules source.
-Future<int> run(List<String> args, List<DpwCommand> Function() commands, {Map<Type, Generator>? overrides}) {
+Future<int> run(List<String> args, List<InjectableCommand> Function() commands, {Map<Type, Generator>? overrides}) {
   return AppContext.current.run<int>(
-    name: 'dpw',
+    name: 'injectable',
     overrides: overrides,
     body: () async {
-      final runner = CommandRunner<int>('dpw', 'Sync the rules corpus into a project and manage its context.');
+      final runner = CommandRunner<int>('injectable', 'Sync the rules corpus into a project and manage its context.');
       commands().forEach(runner.addCommand);
 
       try {

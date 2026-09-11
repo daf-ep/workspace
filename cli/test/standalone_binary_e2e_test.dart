@@ -57,7 +57,7 @@ void main() {
   late String executablePath;
 
   setUpAll(() async {
-    bundle = Directory.systemTemp.createTempSync('dpw_bundle_');
+    bundle = Directory.systemTemp.createTempSync('injectable_bundle_');
 
     final build = await Process.run(Platform.resolvedExecutable, [
       'build',
@@ -69,7 +69,7 @@ void main() {
       fail('dart build cli failed:\n${build.stdout}\n${build.stderr}');
     }
 
-    executablePath = p.join(bundle.path, 'bundle', 'bin', 'dpw');
+    executablePath = p.join(bundle.path, 'bundle', 'bin', 'injectable');
     await _copyDirectory(
       Directory(p.join(Directory.current.path, '..', 'rules')),
       Directory(p.join(bundle.path, 'bundle', 'bin', 'rules')),
@@ -79,8 +79,8 @@ void main() {
   tearDownAll(() => bundle.deleteSync(recursive: true));
 
   setUp(() async {
-    project = Directory.systemTemp.createTempSync('dpw_project_');
-    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/standalone-e2e.git');
+    project = Directory.systemTemp.createTempSync('injectable_project_');
+    await initFakeGitRepo(project, remote: 'git@github.com:injectable-tests/standalone-e2e.git');
   });
 
   tearDown(() => project.deleteSync(recursive: true));
@@ -93,16 +93,16 @@ void main() {
       ['init'],
       workingDirectory: project.path,
       environment: {
-        'DPW_RULES_DIR': rulesStoreRoot.path,
-        'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
-        'DPW_CREDENTIALS_PATH': writeFakeSession(rulesStoreRoot),
+        'INJECTABLE_RULES_DIR': rulesStoreRoot.path,
+        'INJECTABLE_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
+        'INJECTABLE_CREDENTIALS_PATH': writeFakeSession(rulesStoreRoot),
       },
     );
 
     expect(result.exitCode, 0, reason: result.stderr.toString());
-    expect(result.stdout, contains('this project is github.com/dpw-tests/standalone-e2e'));
+    expect(result.stdout, contains('this project is github.com/injectable-tests/standalone-e2e'));
     expect(readRule(storeRoot: rulesStoreRoot, name: 'rules', type: 'rules'), isNotNull);
-    expect(File(p.join(project.path, '.claude', 'dpw', 'push.md')).existsSync(), isTrue);
+    expect(File(p.join(project.path, '.claude', 'injectable', 'push.md')).existsSync(), isTrue);
     expect(File(p.join(project.path, '.gitignore')).readAsStringSync(), contains('.claude/context'));
     expect(File(p.join(project.path, '.claude', 'settings.json')).existsSync(), isTrue);
   });
@@ -116,9 +116,9 @@ void main() {
       ['mcp'],
       workingDirectory: project.path,
       environment: {
-        'DPW_DECISIONS_DATABASE': databasePath,
-        'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
-        'DPW_CREDENTIALS_PATH': writeFakeSession(project),
+        'INJECTABLE_DECISIONS_DATABASE': databasePath,
+        'INJECTABLE_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
+        'INJECTABLE_CREDENTIALS_PATH': writeFakeSession(project),
       },
     );
     addTearDown(process.kill);

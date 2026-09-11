@@ -40,7 +40,7 @@ import 'package:path/path.dart' as p;
 
 Future<void> initFakeGitRepo(
   Directory directory, {
-  String remote = 'https://github.com/dpw-tests/fake-repo.git',
+  String remote = 'https://github.com/injectable-tests/fake-repo.git',
 }) async {
   await _git(directory, ['init', '--quiet']);
   await _git(directory, ['remote', 'add', 'origin', remote]);

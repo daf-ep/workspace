@@ -36,15 +36,15 @@
 
 # The PowerShell half of install.sh, for a Windows that has no sh.
 #
-#   irm https://raw.githubusercontent.com/daf-ep/workspace/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/daf-ep/injectable/main/install.ps1 | iex
 
 $ErrorActionPreference = 'Stop'
 
-$Repository = if ($env:DPW_REPOSITORY) { $env:DPW_REPOSITORY } else { 'daf-ep/workspace' }
-$InstallDir = if ($env:DPW_DIRECTORY) { $env:DPW_DIRECTORY } else { Join-Path $env:LOCALAPPDATA 'dpw' }
+$Repository = if ($env:INJECTABLE_REPOSITORY) { $env:INJECTABLE_REPOSITORY } else { 'daf-ep/injectable' }
+$InstallDir = if ($env:INJECTABLE_DIRECTORY) { $env:INJECTABLE_DIRECTORY } else { Join-Path $env:LOCALAPPDATA 'injectable' }
 
-$BundleAsset = 'dpw-windows-x64.tar.gz'
-$ChecksumsAsset = 'dpw-checksums.txt'
+$BundleAsset = 'injectable-windows-x64.tar.gz'
+$ChecksumsAsset = 'injectable-checksums.txt'
 
 function Fail($message) {
   Write-Error $message
@@ -70,7 +70,7 @@ function Test-Checksum($target, $name, $checksumsFile) {
 
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
-Write-Host "Fetching dpw from the latest release of $Repository"
+Write-Host "Fetching injectable from the latest release of $Repository"
 
 $checksumsFile = Join-Path $InstallDir $ChecksumsAsset
 Write-Host "  $ChecksumsAsset"
@@ -90,17 +90,17 @@ if ($LASTEXITCODE -ne 0) { Fail "could not unpack $BundleAsset. Windows 10 1803 
 Remove-Item $archive -Force
 Remove-Item $checksumsFile -Force
 
-$binaryPath = Join-Path $binDir 'dpw.exe'
+$binaryPath = Join-Path $binDir 'injectable.exe'
 $rules = Join-Path $binDir 'rules'
 if (-not (Test-Path (Join-Path $rules 'global/rules.md'))) { Fail "$BundleAsset carried no bin/rules/global/rules.md" }
 
 Write-Host ''
-Write-Host "Ready. dpw is installed at $binaryPath, reading its rules from $rules."
+Write-Host "Ready. injectable is installed at $binaryPath, reading its rules from $rules."
 
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (";$userPath;" -notlike "*;$binDir;*") {
   [Environment]::SetEnvironmentVariable('Path', "$userPath;$binDir", 'User')
-  Write-Host "Added $binDir to your user PATH. Open a new terminal, then run dpw init in any project."
+  Write-Host "Added $binDir to your user PATH. Open a new terminal, then run injectable init in any project."
 } else {
-  Write-Host "Run dpw init in any project."
+  Write-Host "Run injectable init in any project."
 }

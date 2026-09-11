@@ -44,7 +44,7 @@ const List<String> _supportedHosts = ['github.com', 'gitlab.com'];
 
 /// The id a project's `origin` remote gives it: `host/owner/repo`.
 ///
-/// dpw only works inside a git repository whose `origin` remote is hosted on
+/// injectable only works inside a git repository whose `origin` remote is hosted on
 /// GitHub or GitLab: that remote is the one thing about a project that stays
 /// the same across every machine it gets cloned onto, which a generated id
 /// stored in a file never could.
@@ -55,19 +55,21 @@ const List<String> _supportedHosts = ['github.com', 'gitlab.com'];
 Future<String> gitProjectId(Directory directory) async {
   final root = await _runGit(Git.repo(directory.path).revParse().showToplevel());
   if (root.failed) {
-    throwToolExit('dpw: not a git repository. dpw only works inside one.');
+    throwToolExit('injectable: not a git repository. injectable only works inside one.');
   }
 
   final remote = await _runGit(Git.repo(directory.path).remote().getUrl().remoteName('origin'));
   if (remote.failed) {
-    throwToolExit('dpw: this git repository has no "origin" remote. dpw needs one to identify the project.');
+    throwToolExit(
+      'injectable: this git repository has no "origin" remote. injectable needs one to identify the project.',
+    );
   }
 
   final location = _parseRemote(remote.text);
   if (location == null || !_supportedHosts.contains(location.host)) {
     final host = location?.host ?? remote.text;
     throwToolExit(
-      'dpw: only GitHub and GitLab repositories are supported (${_supportedHosts.join(', ')}), this remote is on $host.',
+      'injectable: only GitHub and GitLab repositories are supported (${_supportedHosts.join(', ')}), this remote is on $host.',
     );
   }
 
@@ -78,7 +80,7 @@ Future<ShellResult> _runGit(GitCmd command) async {
   try {
     return await command.output();
   } on ProcessException {
-    throwToolExit('dpw: git is not installed. Install it, then run this again.');
+    throwToolExit('injectable: git is not installed. Install it, then run this again.');
   }
 }
 

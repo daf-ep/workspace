@@ -42,14 +42,14 @@ import 'package:dart_mcp/stdio.dart';
 import '../decisions.dart';
 import '../globals.dart' as globals;
 import '../rules/store.dart';
-import '../runner/dpw_command.dart';
+import '../runner/injectable_command.dart';
 
 /// Runs the MCP server Claude Code talks to over stdio.
 ///
 /// Claude Code starts and stops this process itself, once per session, so
 /// this command's job ends the moment the server is listening: the process
 /// stays alive on its own, for as long as the stdio channel does.
-class McpCommand extends DpwCommand {
+class McpCommand extends InjectableCommand {
   @override
   final name = 'mcp';
 
@@ -57,32 +57,32 @@ class McpCommand extends DpwCommand {
   final description = 'Runs the MCP server Claude Code talks to, for reading the rules corpus and recording decisions.';
 
   @override
-  Future<DpwCommandResult> runCommand() async {
+  Future<InjectableCommandResult> runCommand() async {
     final projectId = await globals.projectId;
-    DpwServer(
+    InjectableServer(
       stdioChannel(input: stdin, output: stdout),
       projectId: projectId,
     );
 
-    return const DpwCommandResult.success();
+    return const InjectableCommandResult.success();
   }
 }
 
 /// The MCP server exposing `get_rule`, `list_rules` and `record_decision` to
 /// whatever client connects.
-base class DpwServer extends MCPServer with ToolsSupport {
+base class InjectableServer extends MCPServer with ToolsSupport {
   /// Serves [channel], reading the rules corpus and recording decisions
   /// under [projectId].
-  DpwServer(super.channel, {required this.projectId})
+  InjectableServer(super.channel, {required this.projectId})
     : super.fromStreamChannel(
-        implementation: Implementation(name: 'dpw', version: '1.0.0'),
+        implementation: Implementation(name: 'injectable', version: '1.0.0'),
         instructions:
             'Before writing any code, call get_rule with name "rules" and '
             'type "rules": it says how to write here, and names the rest of '
             'the corpus by name and type. A file that names another by a '
             'bare filename, with no type prefix, means one of the same type '
             'as the file you read it from; a name written as "type/name.md" '
-            'names both directly. A file under .claude/dpw/ is not in this '
+            'names both directly. A file under .claude/injectable/ is not in this '
             'database: it is a real file, this project\'s own customization, '
             'read it from there instead. Call list_rules if a lookup does '
             'not resolve.\n\n'

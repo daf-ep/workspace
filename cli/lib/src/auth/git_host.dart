@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-/// The git hosts a dpw account can be linked through.
+/// The git hosts a injectable account can be linked through.
 ///
-/// Both `dpw login` and [gitProjectId]'s own host check name only these two:
+/// Both `injectable login` and [gitProjectId]'s own host check name only these two:
 /// switching on this enum instead of a raw string means a third host, if
 /// one is ever added, is a compiler error everywhere it still needs
 /// handling, not a silent gap.
@@ -44,7 +44,7 @@ enum GitHost {
   /// github.com.
   github,
 
-  /// gitlab.com, or a self-managed instance dpw's backend points at.
+  /// gitlab.com, or a self-managed instance injectable's backend points at.
   gitlab;
 
   /// How this host reads in a sentence: "GitHub", "GitLab".

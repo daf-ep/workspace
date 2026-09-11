@@ -52,9 +52,9 @@ import '../support/fake_git_repo.dart';
 void main() {
   test('logs through the injected logger instead of a real stream', () async {
     final rulesSource = Directory(p.join(Directory.current.path, '..', 'rules'));
-    final workspace = Directory.systemTemp.createTempSync('dpw_init_command_');
+    final workspace = Directory.systemTemp.createTempSync('injectable_init_command_');
     final project = Directory(p.join(workspace.path, 'project'))..createSync();
-    final rulesStoreRoot = Directory.systemTemp.createTempSync('dpw_init_command_rules_store_');
+    final rulesStoreRoot = Directory.systemTemp.createTempSync('injectable_init_command_rules_store_');
     addTearDown(() => workspace.deleteSync(recursive: true));
     addTearDown(() => rulesStoreRoot.deleteSync(recursive: true));
 
@@ -68,23 +68,24 @@ void main() {
         Logger: () => buffer,
         RulesSource: () => RulesSource(rulesSource),
         ProjectRoot: () => ProjectRoot(project),
-        GitProjectId: () => const GitProjectId('github.com/dpw-tests/init-command-test'),
+        GitProjectId: () => const GitProjectId('github.com/injectable-tests/init-command-test'),
         RulesStoreRoot: () => RulesStoreRoot(rulesStoreRoot),
         RemoteUpdateCheckInterval: () => const RemoteUpdateCheckInterval(Duration(days: 365 * 100)),
-        StoredCredentials: () =>
-            const StoredCredentials(StoredSession(token: 'test-token', host: GitHost.github, login: 'dpw-tests')),
+        StoredCredentials: () => const StoredCredentials(
+          StoredSession(token: 'test-token', host: GitHost.github, login: 'injectable-tests'),
+        ),
       },
     );
 
     expect(exitCode, 0);
     expect(buffer.hadErrorOutput, isFalse);
-    expect(buffer.statusText, contains('this project is github.com/dpw-tests/init-command-test'));
+    expect(buffer.statusText, contains('this project is github.com/injectable-tests/init-command-test'));
     expect(buffer.statusText, contains('shared rules synced into'));
     expect(buffer.statusText, contains('customization stubs ensured'));
     expect(buffer.statusText, contains('declared the mcp server'));
     expect(buffer.statusText, contains('declared the context hooks'));
     expect(readRule(storeRoot: rulesStoreRoot, name: 'rules', type: 'rules'), isNotNull);
-    expect(File(p.join(project.path, '.claude', 'dpw', 'push.md')).existsSync(), isTrue);
+    expect(File(p.join(project.path, '.claude', 'injectable', 'push.md')).existsSync(), isTrue);
     expect(File(p.join(project.path, '.mcp.json')).existsSync(), isTrue);
 
     expect(File(p.join(project.path, '.gitignore')).readAsStringSync(), contains('.claude/context'));

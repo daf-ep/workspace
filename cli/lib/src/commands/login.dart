@@ -45,22 +45,22 @@ import '../auth/git_host.dart';
 import '../auth/session_store.dart';
 import '../base/common.dart';
 import '../globals.dart' as globals;
-import '../runner/dpw_command.dart';
+import '../runner/injectable_command.dart';
 
-/// Links this machine to a dpw account through GitHub or GitLab.
+/// Links this machine to a injectable account through GitHub or GitLab.
 ///
 /// Runs an OAuth Device Authorization Grant against whichever host is
 /// chosen: a code and a link are shown, the browser opens on its own, and
 /// this waits until the login is approved there. The provider is never
-/// asked for more than who its token belongs to; dpw's backend is the one
+/// asked for more than who its token belongs to; injectable's backend is the one
 /// place that identity is turned into a session, stored at
 /// [globals.credentialsPath] for every other command to read.
-class LoginCommand extends DpwCommand {
+class LoginCommand extends InjectableCommand {
   @override
   final name = 'login';
 
   @override
-  final description = 'Links this machine to a dpw account through GitHub or GitLab.';
+  final description = 'Links this machine to a injectable account through GitHub or GitLab.';
 
   @override
   bool get requiresAuthentication => false;
@@ -71,7 +71,7 @@ class LoginCommand extends DpwCommand {
   }
 
   @override
-  Future<DpwCommandResult> runCommand() async {
+  Future<InjectableCommandResult> runCommand() async {
     final host = _resolveHost();
     final httpClient = http.Client();
     try {
@@ -88,9 +88,9 @@ class LoginCommand extends DpwCommand {
       final session = await _exchangeForSession(httpClient: httpClient, host: host, accessToken: accessToken);
 
       SessionStore(globals.credentialsPath).save(session);
-      globals.logger.printStatus('dpw: logged in as ${session.login} on ${host.label}.');
+      globals.logger.printStatus('injectable: logged in as ${session.login} on ${host.label}.');
 
-      return const DpwCommandResult.success();
+      return const InjectableCommandResult.success();
     } finally {
       httpClient.close();
     }
@@ -100,11 +100,11 @@ class LoginCommand extends DpwCommand {
     if (GitHost.parse(argResults?['provider'] as String?) case final GitHost named) return named;
 
     if (!stdin.hasTerminal) {
-      throwToolExit('dpw: pass --provider github|gitlab when there is no terminal to ask on.');
+      throwToolExit('injectable: pass --provider github|gitlab when there is no terminal to ask on.');
     }
 
     final picked = interact.Select(
-      prompt: 'Which host is your dpw account linked through?',
+      prompt: 'Which host is your injectable account linked through?',
       options: const ['GitHub', 'GitLab'],
     ).interact();
     return GitHost.values[picked];
@@ -116,13 +116,17 @@ class LoginCommand extends DpwCommand {
         httpClient: httpClient,
         clientId:
             globals.githubOAuthClientId ??
-            throwToolExit('dpw: DPW_GITHUB_CLIENT_ID is not set; `dpw login` cannot reach GitHub without it.'),
+            throwToolExit(
+              'injectable: INJECTABLE_GITHUB_CLIENT_ID is not set; `injectable login` cannot reach GitHub without it.',
+            ),
       ),
       GitHost.gitlab => GitLabDeviceFlow(
         httpClient: httpClient,
         clientId:
             globals.gitlabOAuthClientId ??
-            throwToolExit('dpw: DPW_GITLAB_CLIENT_ID is not set; `dpw login` cannot reach GitLab without it.'),
+            throwToolExit(
+              'injectable: INJECTABLE_GITLAB_CLIENT_ID is not set; `injectable login` cannot reach GitLab without it.',
+            ),
         gitlabBaseUrl: globals.gitlabOAuthBaseUrl,
       ),
     };
@@ -143,13 +147,13 @@ class LoginCommand extends DpwCommand {
         case DevicePollSlowDown():
           interval += const Duration(seconds: 5);
         case DevicePollDenied():
-          throwToolExit('dpw: login was declined.');
+          throwToolExit('injectable: login was declined.');
         case DevicePollExpired():
-          throwToolExit('dpw: the login code expired before it was approved. Run `dpw login` again.');
+          throwToolExit('injectable: the login code expired before it was approved. Run `injectable login` again.');
       }
     }
 
-    throwToolExit('dpw: timed out waiting for the login to be approved. Run `dpw login` again.');
+    throwToolExit('injectable: timed out waiting for the login to be approved. Run `injectable login` again.');
   }
 
   Future<StoredSession> _exchangeForSession({
@@ -167,11 +171,11 @@ class LoginCommand extends DpwCommand {
     try {
       body = jsonDecode(response.body) as Map<String, dynamic>;
     } on FormatException {
-      throwToolExit('dpw: the backend answered the login with something other than JSON.');
+      throwToolExit('injectable: the backend answered the login with something other than JSON.');
     }
 
     if (response.statusCode != 200) {
-      throwToolExit('dpw: ${body['error'] ?? 'login failed (HTTP ${response.statusCode}).'}');
+      throwToolExit('injectable: ${body['error'] ?? 'login failed (HTTP ${response.statusCode}).'}');
     }
 
     final token = body['token'] as String;

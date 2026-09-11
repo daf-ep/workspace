@@ -131,7 +131,7 @@ String get decisionsDatabasePath =>
     (context.get<DecisionsDatabase>() ?? DecisionsDatabase(_defaultDecisionsDatabasePath)).path;
 
 String get _defaultDecisionsDatabasePath =>
-    _dpwDataPath(envVariable: 'DPW_DECISIONS_DATABASE', filename: 'decisions.sqlite3');
+    _injectableDataPath(envVariable: 'INJECTABLE_DECISIONS_DATABASE', filename: 'decisions.sqlite3');
 
 /// Where the shared rules store this run reads and writes lives.
 ///
@@ -149,12 +149,12 @@ class RulesStoreRoot {
 /// The directory the rules store this run reads and writes lives at.
 ///
 /// One store for every project on the machine, at a fixed place under the
-/// user's home, so `dpw init` writes the corpus once and every project's
-/// `dpw mcp` reads that same copy instead of one duplicated per project.
+/// user's home, so `injectable init` writes the corpus once and every project's
+/// `injectable mcp` reads that same copy instead of one duplicated per project.
 Directory get rulesStoreRoot =>
     (context.get<RulesStoreRoot>() ?? RulesStoreRoot(Directory(_defaultRulesStoreRootPath))).directory;
 
-String get _defaultRulesStoreRootPath => _dpwDataPath(envVariable: 'DPW_RULES_DIR', filename: 'rules');
+String get _defaultRulesStoreRootPath => _injectableDataPath(envVariable: 'INJECTABLE_RULES_DIR', filename: 'rules');
 
 /// How long a remote update check, once made, holds off the next one.
 ///
@@ -176,9 +176,9 @@ Duration get remoteUpdateCheckInterval =>
     (context.get<RemoteUpdateCheckInterval>() ?? RemoteUpdateCheckInterval(_defaultRemoteUpdateCheckInterval)).duration;
 
 Duration get _defaultRemoteUpdateCheckInterval =>
-    _durationFromEnv(envVariable: 'DPW_UPDATE_CHECK_INTERVAL_SECONDS', defaultValue: const Duration(days: 1));
+    _durationFromEnv(envVariable: 'INJECTABLE_UPDATE_CHECK_INTERVAL_SECONDS', defaultValue: const Duration(days: 1));
 
-/// Where this run's stored dpw session lives.
+/// Where this run's stored injectable session lives.
 ///
 /// Wrapped rather than looked up through a raw [String], so a test
 /// overriding it never risks colliding with an unrelated one a future
@@ -191,16 +191,17 @@ class CredentialsPath {
   final String path;
 }
 
-/// The path `dpw login` writes to and every other command reads from.
+/// The path `injectable login` writes to and every other command reads from.
 String get credentialsPath => (context.get<CredentialsPath>() ?? CredentialsPath(_defaultCredentialsPath)).path;
 
-String get _defaultCredentialsPath => _dpwDataPath(envVariable: 'DPW_CREDENTIALS_PATH', filename: 'credentials');
+String get _defaultCredentialsPath =>
+    _injectableDataPath(envVariable: 'INJECTABLE_CREDENTIALS_PATH', filename: 'credentials');
 
 /// The session this run is authenticated under.
 ///
 /// Wrapped rather than looked up through a raw nullable [StoredSession], so
 /// a test overriding it never risks colliding with an unrelated one a
-/// future override might register, and so [DpwCommand.run] reads the store
+/// future override might register, and so [InjectableCommand.run] reads the store
 /// at most once per run instead of hitting disk again for every command
 /// that needs it.
 class StoredCredentials {
@@ -211,12 +212,12 @@ class StoredCredentials {
   final StoredSession? session;
 }
 
-/// The session this run is authenticated under, or null when `dpw login`
-/// was never run on this machine, or `dpw logout` cleared it.
+/// The session this run is authenticated under, or null when `injectable login`
+/// was never run on this machine, or `injectable logout` cleared it.
 StoredSession? get storedSession =>
     (context.get<StoredCredentials>() ?? StoredCredentials(SessionStore(credentialsPath).read())).session;
 
-/// Where dpw's backend API lives.
+/// Where injectable's backend API lives.
 ///
 /// Wrapped rather than looked up through a raw [String], so a test
 /// overriding it never risks colliding with an unrelated one a future
@@ -230,10 +231,10 @@ class BackendBaseUrl {
 }
 
 /// Where this run's backend calls go, `http://localhost:8080` unless
-/// `DPW_BACKEND_URL` says otherwise.
+/// `INJECTABLE_BACKEND_URL` says otherwise.
 String get backendBaseUrl =>
     (context.get<BackendBaseUrl>() ??
-            BackendBaseUrl(Platform.environment['DPW_BACKEND_URL'] ?? 'http://localhost:8080'))
+            BackendBaseUrl(Platform.environment['INJECTABLE_BACKEND_URL'] ?? 'http://localhost:8080'))
         .url;
 
 /// Wraps the answer [githubOAuthClientId] should give for this run, kept
@@ -248,10 +249,11 @@ class GitHubOAuthClientId {
   final String? value;
 }
 
-/// The OAuth client id `dpw login` presents to GitHub, or null when
-/// `DPW_GITHUB_CLIENT_ID` is not set.
+/// The OAuth client id `injectable login` presents to GitHub, or null when
+/// `INJECTABLE_GITHUB_CLIENT_ID` is not set.
 String? get githubOAuthClientId =>
-    (context.get<GitHubOAuthClientId>() ?? GitHubOAuthClientId(Platform.environment['DPW_GITHUB_CLIENT_ID'])).value;
+    (context.get<GitHubOAuthClientId>() ?? GitHubOAuthClientId(Platform.environment['INJECTABLE_GITHUB_CLIENT_ID']))
+        .value;
 
 /// Wraps the answer [gitlabOAuthClientId] should give for this run, kept
 /// apart from [GitHubOAuthClientId] so overriding one host's client id in a
@@ -265,13 +267,14 @@ class GitLabOAuthClientId {
   final String? value;
 }
 
-/// The OAuth client id `dpw login` presents to GitLab, or null when
-/// `DPW_GITLAB_CLIENT_ID` is not set.
+/// The OAuth client id `injectable login` presents to GitLab, or null when
+/// `INJECTABLE_GITLAB_CLIENT_ID` is not set.
 String? get gitlabOAuthClientId =>
-    (context.get<GitLabOAuthClientId>() ?? GitLabOAuthClientId(Platform.environment['DPW_GITLAB_CLIENT_ID'])).value;
+    (context.get<GitLabOAuthClientId>() ?? GitLabOAuthClientId(Platform.environment['INJECTABLE_GITLAB_CLIENT_ID']))
+        .value;
 
-/// Where this run's GitLab instance lives for the sake of `dpw login`,
-/// `https://gitlab.com` unless `DPW_GITLAB_BASE_URL` says otherwise.
+/// Where this run's GitLab instance lives for the sake of `injectable login`,
+/// `https://gitlab.com` unless `INJECTABLE_GITLAB_BASE_URL` says otherwise.
 ///
 /// Wrapped rather than looked up through a raw [String], so a test
 /// overriding it never risks colliding with an unrelated one a future
@@ -287,7 +290,7 @@ class GitLabOAuthBaseUrl {
 /// Where this run logs into GitLab through.
 String get gitlabOAuthBaseUrl =>
     (context.get<GitLabOAuthBaseUrl>() ??
-            GitLabOAuthBaseUrl(Platform.environment['DPW_GITLAB_BASE_URL'] ?? 'https://gitlab.com'))
+            GitLabOAuthBaseUrl(Platform.environment['INJECTABLE_GITLAB_BASE_URL'] ?? 'https://gitlab.com'))
         .url;
 
 Duration _durationFromEnv({required String envVariable, required Duration defaultValue}) {
@@ -297,12 +300,12 @@ Duration _durationFromEnv({required String envVariable, required Duration defaul
   return defaultValue;
 }
 
-String _dpwDataPath({required String envVariable, required String filename}) {
+String _injectableDataPath({required String envVariable, required String filename}) {
   if (Platform.environment[envVariable] case final String overridden when overridden.isNotEmpty) {
     return overridden;
   }
 
   final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-  if (home == null) throwToolExit('dpw: could not find the home directory to store $filename in');
-  return p.join(home, '.local', 'share', 'dpw', filename);
+  if (home == null) throwToolExit('injectable: could not find the home directory to store $filename in');
+  return p.join(home, '.local', 'share', 'injectable', filename);
 }

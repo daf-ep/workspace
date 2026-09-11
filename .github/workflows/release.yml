@@ -1,4 +1,4 @@
-name: Release dpw
+name: Release injectable
 
 on:
   push:
@@ -84,12 +84,12 @@ jobs:
 
       - name: Pack the bundle
         working-directory: cli
-        run: tar -czf dpw-${{ matrix.platform }}.tar.gz -C build_out/bundle .
+        run: tar -czf injectable-${{ matrix.platform }}.tar.gz -C build_out/bundle .
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: dpw-${{ matrix.platform }}
-          path: cli/dpw-${{ matrix.platform }}.tar.gz
+          name: injectable-${{ matrix.platform }}
+          path: cli/injectable-${{ matrix.platform }}.tar.gz
           retention-days: 1
           if-no-files-found: error
 
@@ -115,7 +115,7 @@ jobs:
           find artifacts -type f -name '*.tar.gz' -exec cp {} release/ \;
 
       - name: Write a checksum for every asset, for install.sh to verify
-        run: (cd release && sha256sum * > dpw-checksums.txt)
+        run: (cd release && sha256sum * > injectable-checksums.txt)
 
       - name: Create the release
         env:

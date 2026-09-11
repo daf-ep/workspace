@@ -40,7 +40,7 @@ import 'package:cli/src/auth/session_store.dart';
 import 'package:cli/src/base/context.dart';
 import 'package:cli/src/base/logger.dart';
 import 'package:cli/src/globals.dart';
-import 'package:cli/src/runner/dpw_command.dart';
+import 'package:cli/src/runner/injectable_command.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -101,7 +101,7 @@ void main() {
   });
 }
 
-class _FakeCommand extends DpwCommand {
+class _FakeCommand extends InjectableCommand {
   _FakeCommand({required bool requiresAuthentication, required this.onRun})
     : _requiresAuthentication = requiresAuthentication;
 
@@ -118,8 +118,8 @@ class _FakeCommand extends DpwCommand {
   bool get requiresAuthentication => _requiresAuthentication;
 
   @override
-  Future<DpwCommandResult> runCommand() async {
+  Future<InjectableCommandResult> runCommand() async {
     onRun();
-    return const DpwCommandResult.success();
+    return const InjectableCommandResult.success();
   }
 }

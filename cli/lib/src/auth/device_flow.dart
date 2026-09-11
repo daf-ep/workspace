@@ -75,7 +75,7 @@ class DeviceAuthorization {
 
 /// What one [DeviceFlow.poll] call found.
 ///
-/// Sealed so `dpw login`'s wait loop is forced, by the compiler, to decide
+/// Sealed so `injectable login`'s wait loop is forced, by the compiler, to decide
 /// what every one of these means, rather than falling through a default
 /// case if the host ever adds one RFC 8628 does not already name.
 sealed class DevicePollResult {
@@ -87,7 +87,7 @@ class DevicePollGranted extends DevicePollResult {
   /// Carries the [accessToken] the host minted.
   const DevicePollGranted(this.accessToken);
 
-  /// The access token `dpw login` trades with dpw's backend for a session.
+  /// The access token `injectable login` trades with injectable's backend for a session.
   final String accessToken;
 }
 
@@ -123,7 +123,7 @@ class DevicePollExpired extends DevicePollResult {
 /// [scope]; [requestCode] and [poll] are the same request/response shape
 /// for every host that follows the RFC, so they live here once.
 abstract class DeviceFlow {
-  /// Talks to [host] over [_httpClient], identifying `dpw login` as
+  /// Talks to [host] over [_httpClient], identifying `injectable login` as
   /// [_clientId].
   const DeviceFlow(this.host, this._httpClient, this._clientId);
 
@@ -151,7 +151,7 @@ abstract class DeviceFlow {
       body: {'client_id': _clientId, 'scope': scope},
     );
     if (response.statusCode != 200) {
-      throwToolExit('dpw: ${host.label} refused to start the login (HTTP ${response.statusCode}).');
+      throwToolExit('injectable: ${host.label} refused to start the login (HTTP ${response.statusCode}).');
     }
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -181,7 +181,7 @@ abstract class DeviceFlow {
     try {
       body = jsonDecode(response.body) as Map<String, dynamic>;
     } on FormatException {
-      throwToolExit('dpw: ${host.label} answered the login poll with something other than JSON.');
+      throwToolExit('injectable: ${host.label} answered the login poll with something other than JSON.');
     }
 
     if (body['access_token'] case final String token) return DevicePollGranted(token);
@@ -191,14 +191,14 @@ abstract class DeviceFlow {
       'slow_down' => const DevicePollSlowDown(),
       'access_denied' => const DevicePollDenied(),
       'expired_token' => const DevicePollExpired(),
-      _ => throwToolExit('dpw: ${host.label} answered the login poll unexpectedly: ${response.body}'),
+      _ => throwToolExit('injectable: ${host.label} answered the login poll unexpectedly: ${response.body}'),
     };
   }
 }
 
 /// Logs into github.com.
 class GitHubDeviceFlow extends DeviceFlow {
-  /// Identifies `dpw login` to GitHub as [clientId].
+  /// Identifies `injectable login` to GitHub as [clientId].
   GitHubDeviceFlow({required http.Client httpClient, required String clientId})
     : super(GitHost.github, httpClient, clientId);
 
@@ -214,7 +214,7 @@ class GitHubDeviceFlow extends DeviceFlow {
 
 /// Logs into [gitlabBaseUrl].
 class GitLabDeviceFlow extends DeviceFlow {
-  /// Identifies `dpw login` to [gitlabBaseUrl] as [clientId].
+  /// Identifies `injectable login` to [gitlabBaseUrl] as [clientId].
   GitLabDeviceFlow({required http.Client httpClient, required String clientId, required this.gitlabBaseUrl})
     : super(GitHost.gitlab, httpClient, clientId);
 

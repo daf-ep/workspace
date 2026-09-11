@@ -36,28 +36,28 @@
 
 import '../auth/session_store.dart';
 import '../globals.dart' as globals;
-import '../runner/dpw_command.dart';
+import '../runner/injectable_command.dart';
 
-/// Forgets this machine's stored dpw session.
+/// Forgets this machine's stored injectable session.
 ///
 /// Idempotent: running this with nothing stored is not an error, the same
 /// way logging out of an account you were never in isn't.
-class LogoutCommand extends DpwCommand {
+class LogoutCommand extends InjectableCommand {
   @override
   final name = 'logout';
 
   @override
-  final description = "Forgets this machine's stored dpw session.";
+  final description = "Forgets this machine's stored injectable session.";
 
   @override
   bool get requiresAuthentication => false;
 
   @override
-  Future<DpwCommandResult> runCommand() async {
+  Future<InjectableCommandResult> runCommand() async {
     final wasLoggedIn = globals.storedSession != null;
     SessionStore(globals.credentialsPath).clear();
 
-    globals.logger.printStatus(wasLoggedIn ? 'dpw: logged out.' : 'dpw: was not logged in.');
-    return const DpwCommandResult.success();
+    globals.logger.printStatus(wasLoggedIn ? 'injectable: logged out.' : 'injectable: was not logged in.');
+    return const InjectableCommandResult.success();
   }
 }

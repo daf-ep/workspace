@@ -37,11 +37,11 @@
 
 set -eu
 
-REPOSITORY="${DPW_REPOSITORY:-daf-ep/workspace}"
-INSTALL_DIR="${DPW_DIRECTORY:-$HOME/.local/share/dpw}"
-BIN_DIR="${DPW_BIN_DIR:-$HOME/.local/bin}"
+REPOSITORY="${INJECTABLE_REPOSITORY:-daf-ep/injectable}"
+INSTALL_DIR="${INJECTABLE_DIRECTORY:-$HOME/.local/share/injectable}"
+BIN_DIR="${INJECTABLE_BIN_DIR:-$HOME/.local/bin}"
 
-CHECKSUMS_ASSET="dpw-checksums.txt"
+CHECKSUMS_ASSET="injectable-checksums.txt"
 
 say() { printf '%s\n' "$*"; }
 fail() { printf '%s\n' "$*" >&2; exit 1; }
@@ -49,13 +49,13 @@ fail() { printf '%s\n' "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
 case "$(uname -s)" in
-  Linux) BUNDLE_ASSET="dpw-linux-x64.tar.gz" ;;
-  Darwin) BUNDLE_ASSET="dpw-macos-arm64.tar.gz" ;;
-  *) fail "dpw: no build for $(uname -s). Linux and macOS are published, Windows installs with install.ps1." ;;
+  Linux) BUNDLE_ASSET="injectable-linux-x64.tar.gz" ;;
+  Darwin) BUNDLE_ASSET="injectable-macos-arm64.tar.gz" ;;
+  *) fail "injectable: no build for $(uname -s). Linux and macOS are published, Windows installs with install.ps1." ;;
 esac
 
 if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" != "arm64" ]; then
-  fail "dpw: only Apple Silicon macOS is published. An Intel Mac has no build here."
+  fail "injectable: only Apple Silicon macOS is published. An Intel Mac has no build here."
 fi
 
 download() {
@@ -99,7 +99,7 @@ verify() {
 
 mkdir -p "$INSTALL_DIR" "$BIN_DIR"
 
-say "Fetching dpw from the latest release of $REPOSITORY"
+say "Fetching injectable from the latest release of $REPOSITORY"
 
 CHECKSUMS_FILE="$INSTALL_DIR/$CHECKSUMS_ASSET"
 say "  $CHECKSUMS_ASSET"
@@ -113,19 +113,19 @@ verify "$archive" "$BUNDLE_ASSET"
 rm -rf "${INSTALL_DIR:?}/bin" "${INSTALL_DIR:?}/lib"
 tar -xzf "$archive" -C "$INSTALL_DIR"
 rm -f "$archive" "$CHECKSUMS_FILE"
-chmod +x "$INSTALL_DIR/bin/dpw"
+chmod +x "$INSTALL_DIR/bin/injectable"
 
 [ -f "$INSTALL_DIR/bin/rules/global/rules.md" ] || fail "$BUNDLE_ASSET carried no bin/rules/global/rules.md"
 
-ln -sfn "$INSTALL_DIR/bin/dpw" "$BIN_DIR/dpw"
+ln -sfn "$INSTALL_DIR/bin/injectable" "$BIN_DIR/injectable"
 
 say ""
-say "Ready. dpw is installed at $BIN_DIR/dpw, reading its rules from $INSTALL_DIR/bin/rules."
+say "Ready. injectable is installed at $BIN_DIR/injectable, reading its rules from $INSTALL_DIR/bin/rules."
 
 case ":$PATH:" in
-  *":$BIN_DIR:"*) say "Run dpw init in any project." ;;
+  *":$BIN_DIR:"*) say "Run injectable init in any project." ;;
   *)
-    say "$BIN_DIR is not on your PATH yet. Add it once, then run dpw init in any project:"
+    say "$BIN_DIR is not on your PATH yet. Add it once, then run injectable init in any project:"
     say "  echo 'export PATH=\"$BIN_DIR:\$PATH\"' >> ~/.profile"
     ;;
 esac

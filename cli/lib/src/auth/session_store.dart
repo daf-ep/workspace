@@ -39,13 +39,13 @@ import 'dart:io';
 
 import 'git_host.dart';
 
-/// The dpw session `dpw login` obtained, held on this machine until
-/// `dpw logout` or a fresh `dpw login` replaces it.
+/// The injectable session `injectable login` obtained, held on this machine until
+/// `injectable logout` or a fresh `injectable login` replaces it.
 class StoredSession {
   /// Wraps an already-minted [token], identifying [login] on [host].
   const StoredSession({required this.token, required this.host, required this.login});
 
-  /// The dpw session token every authenticated request carries.
+  /// The injectable session token every authenticated request carries.
   final String token;
 
   /// Which host [login] was linked through.
@@ -59,7 +59,7 @@ class StoredSession {
 
   /// The session [json] describes, or null when it is missing a field or
   /// names a host [GitHost.parse] does not recognise: either way, this is
-  /// not a session `dpw` can use, and is treated the same as none at all.
+  /// not a session `injectable` can use, and is treated the same as none at all.
   static StoredSession? fromJson(Map<String, dynamic> json) {
     final host = GitHost.parse(json['host'] as String?);
     final token = json['token'] as String?;
@@ -72,7 +72,7 @@ class StoredSession {
 /// Reads and writes the [StoredSession] at [path].
 ///
 /// A missing or unreadable file means "not logged in", the ordinary state
-/// for a machine that never ran `dpw login`, so [read] returns null rather
+/// for a machine that never ran `injectable login`, so [read] returns null rather
 /// than throwing for either.
 class SessionStore {
   /// Persists sessions at [path].

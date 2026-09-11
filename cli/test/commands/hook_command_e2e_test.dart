@@ -47,8 +47,8 @@ void main() {
   late String binPath;
 
   setUp(() {
-    project = Directory.systemTemp.createTempSync('dpw_hook_command_e2e_');
-    binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
+    project = Directory.systemTemp.createTempSync('injectable_hook_command_e2e_');
+    binPath = p.join(Directory.current.path, 'bin', 'injectable.dart');
   });
 
   tearDown(() => project.deleteSync(recursive: true));
@@ -92,7 +92,7 @@ Future<int> _runHook(String binPath, Directory project, {required String? event,
     Platform.resolvedExecutable,
     ['run', binPath, 'hook', ?event],
     workingDirectory: project.path,
-    environment: {'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
+    environment: {'INJECTABLE_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
   );
 
   process.stdin.write(payload);
@@ -100,6 +100,6 @@ Future<int> _runHook(String binPath, Directory project, {required String? event,
 
   final stderrOutput = await process.stderr.transform(utf8.decoder).join();
   final exitCode = await process.exitCode;
-  if (exitCode != 0) fail('dpw hook exited $exitCode:\n$stderrOutput');
+  if (exitCode != 0) fail('injectable hook exited $exitCode:\n$stderrOutput');
   return exitCode;
 }

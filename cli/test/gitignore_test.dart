@@ -45,7 +45,7 @@ void main() {
   late File file;
 
   setUp(() {
-    project = Directory.systemTemp.createTempSync('dpw_gitignore_');
+    project = Directory.systemTemp.createTempSync('injectable_gitignore_');
     file = File(p.join(project.path, '.gitignore'));
   });
 

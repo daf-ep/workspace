@@ -43,7 +43,7 @@ import 'package:test/test.dart';
 void main() {
   late Directory storeRoot;
 
-  setUp(() => storeRoot = Directory.systemTemp.createTempSync('dpw_rules_store_'));
+  setUp(() => storeRoot = Directory.systemTemp.createTempSync('injectable_rules_store_'));
   tearDown(() => storeRoot.deleteSync(recursive: true));
 
   test('reads back a synced rule under a directory, by its type and name', () {

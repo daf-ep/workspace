@@ -4,7 +4,7 @@ The work is written, it has run. What's left is the question almost always skipp
 
 A commit is hard to undo; a judgment made three minutes earlier costs nothing.
 
-**A project can demand more.** When `.claude/dpw/review.md` exists, it says the passing threshold this project requires and whether a peer has to judge on top of the self-assessment; the threshold of "8" that comes up in this file is the one that applies by default. The rest, the five criteria and the vetoes, doesn't get customized and stays defined here.
+**A project can demand more.** When `.claude/injectable/review.md` exists, it says the passing threshold this project requires and whether a peer has to judge on top of the self-assessment; the threshold of "8" that comes up in this file is the one that applies by default. The rest, the five criteria and the vetoes, doesn't get customized and stays defined here.
 
 ## The Posture: Look for the Defect, Not the Confirmation
 

@@ -38,7 +38,7 @@ import 'package:cli/src/auth/git_host.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('parses the wire names dpw\'s backend and OAuth providers use', () {
+  test('parses the wire names injectable\'s backend and OAuth providers use', () {
     expect(GitHost.parse('github'), GitHost.github);
     expect(GitHost.parse('gitlab'), GitHost.gitlab);
   });

@@ -46,7 +46,7 @@ void main() {
   late File configFile;
 
   setUp(() {
-    project = Directory.systemTemp.createTempSync('dpw_settings_config_');
+    project = Directory.systemTemp.createTempSync('injectable_settings_config_');
     configFile = File(p.join(project.path, '.claude', 'settings.json'));
   });
 
@@ -122,7 +122,7 @@ void main() {
           'SessionStart': [
             {
               'hooks': [
-                {'type': 'command', 'command': 'dpw hook session-start', 'timeout': 5},
+                {'type': 'command', 'command': 'injectable hook session-start', 'timeout': 5},
               ],
             },
           ],
@@ -139,7 +139,7 @@ void main() {
     expect(groups, [
       {
         'hooks': [
-          {'type': 'command', 'command': 'dpw hook session-start', 'timeout': 30},
+          {'type': 'command', 'command': 'injectable hook session-start', 'timeout': 30},
         ],
       },
     ]);

@@ -42,12 +42,12 @@ import 'package:cli/src/commands/init.dart';
 import 'package:cli/src/commands/login.dart';
 import 'package:cli/src/commands/logout.dart';
 import 'package:cli/src/commands/mcp.dart';
-import 'package:cli/src/runner/dpw_command.dart';
+import 'package:cli/src/runner/injectable_command.dart';
 
 Future<void> main(List<String> args) async {
   final int code = await runner.run(
     args,
-    () => <DpwCommand>[LoginCommand(), LogoutCommand(), InitCommand(), McpCommand(), HookCommand()],
+    () => <InjectableCommand>[LoginCommand(), LogoutCommand(), InitCommand(), McpCommand(), HookCommand()],
   );
 
   if (code != 0) exit(code);

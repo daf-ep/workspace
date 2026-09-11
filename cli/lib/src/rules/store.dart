@@ -43,10 +43,10 @@ import 'package:path/path.dart' as p;
 /// instead of a database: the content was already a directory of files
 /// before it reached this store, and stays one.
 ///
-/// Reading directly here, rather than through the checkout `dpw init` first
+/// Reading directly here, rather than through the checkout `injectable init` first
 /// read from, is what lets the same store serve a project regardless of
 /// whether that checkout is an installed copy beside the binary or the
-/// working tree of whoever is developing dpw itself: only [storeRoot] is
+/// working tree of whoever is developing injectable itself: only [storeRoot] is
 /// ever written to, the checkout stays read-only.
 String? readRule({required Directory storeRoot, required String name, required String type}) {
   final file = File(p.joinAll([storeRoot.path, 'global', ..._toSegments(type: type, name: name)]));

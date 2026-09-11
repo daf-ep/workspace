@@ -46,7 +46,7 @@ void main() {
   late File configFile;
 
   setUp(() {
-    project = Directory.systemTemp.createTempSync('dpw_mcp_config_');
+    project = Directory.systemTemp.createTempSync('injectable_mcp_config_');
     configFile = File(p.join(project.path, '.mcp.json'));
   });
 
@@ -60,8 +60,8 @@ void main() {
     final config = jsonDecode(configFile.readAsStringSync()) as Map<String, dynamic>;
     final servers = config['mcpServers'] as Map<String, dynamic>;
 
-    expect(servers['dpw-decisions'], {
-      'command': 'dpw',
+    expect(servers['injectable-decisions'], {
+      'command': 'injectable',
       'args': ['mcp'],
     });
   });
@@ -81,7 +81,7 @@ void main() {
     final servers = config['mcpServers'] as Map<String, dynamic>;
 
     expect(servers['some-other-server'], isNotNull);
-    expect(servers['dpw-decisions'], isNotNull);
+    expect(servers['injectable-decisions'], isNotNull);
   });
 
   test('keeps a top-level key that has nothing to do with mcpServers', () {
@@ -98,7 +98,7 @@ void main() {
     configFile.writeAsStringSync(
       jsonEncode({
         'mcpServers': {
-          'dpw-decisions': {'command': 'stale-command', 'args': <String>[]},
+          'injectable-decisions': {'command': 'stale-command', 'args': <String>[]},
         },
       }),
     );
@@ -108,8 +108,8 @@ void main() {
     final config = jsonDecode(configFile.readAsStringSync()) as Map<String, dynamic>;
     final servers = config['mcpServers'] as Map<String, dynamic>;
 
-    expect(servers['dpw-decisions'], {
-      'command': 'dpw',
+    expect(servers['injectable-decisions'], {
+      'command': 'injectable',
       'args': ['mcp'],
     });
     expect(servers.length, 1);

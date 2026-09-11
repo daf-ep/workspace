@@ -41,12 +41,12 @@ import 'package:cli/src/auth/session_store.dart';
 import 'package:path/path.dart' as p;
 
 /// Writes a [StoredSession] under [directory] and returns its path, ready
-/// to hand a spawned `dpw` process as `DPW_CREDENTIALS_PATH`: every command
+/// to hand a spawned `injectable` process as `INJECTABLE_CREDENTIALS_PATH`: every command
 /// but `login`, `logout` and `hook` now refuses to run without one, and a
 /// test exercising those commands is not the place to also drive a real
 /// device login.
 String writeFakeSession(Directory directory) {
   final path = p.join(directory.path, 'credentials');
-  SessionStore(path).save(const StoredSession(token: 'test-token', host: GitHost.github, login: 'dpw-tests'));
+  SessionStore(path).save(const StoredSession(token: 'test-token', host: GitHost.github, login: 'injectable-tests'));
   return path;
 }

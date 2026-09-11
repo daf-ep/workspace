@@ -1,39 +1,39 @@
-# dafep
+# injectable
 
 **The way I write software, packaged into one command. Take it if it's useful to you.**
 
 Every team re-litigates the same arguments: what deserves a comment, when a test is worth writing, how a commit should read, what "good" even means before you hit push. This repo settles all of it, once, for good, and carries the answer with you from job to job instead of leaving it behind with the last company.
 
-`dafep` is a single command. Run it in any project and it wires an MCP server into that project, ready for an AI coding agent to read the full set of engineering rules from the first line, and starts capturing every session's conversation, encrypted, on its own branch, isolated from your code.
+`injectable` is a single command. Run it in any project and it wires an MCP server into that project, ready for an AI coding agent to read the full set of engineering rules from the first line, and links the machine to an injectable account so every session can be traced back to whoever ran it.
 
 ## Install
 
 ```
-curl -fsSL https://raw.githubusercontent.com/daf-ep/workspace/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/daf-ep/injectable/main/install.sh | sh
 ```
 
 On Windows:
 
 ```
-irm https://raw.githubusercontent.com/daf-ep/workspace/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/daf-ep/injectable/main/install.ps1 | iex
 ```
 
-That installs `dpw` globally, no Dart required. From then on, in any project:
+That installs `injectable` globally, no Dart required. From then on, in any project:
 
 ```
 cd ~/any/project
-dpw init
+injectable init
 ```
 
-`dpw` also checks this repository for updates on its own, at most once a day, so you rarely need to run `init` again just to catch up. Anything you've customized for that project stays exactly as you left it, and the project keeps the same id across every run.
+`injectable` also checks this repository for updates on its own, at most once a day, so you rarely need to run `init` again just to catch up. Anything you've customized for that project stays exactly as you left it, and the project keeps the same id across every run.
 
 Working on the CLI itself, rather than just using it, needs the Dart SDK:
 
 ```
-git clone git@github.com:daf-ep/workspace.git
-cd workspace/cli
+git clone git@github.com:daf-ep/injectable.git
+cd injectable/cli
 dart pub get
-dart run bin/dpw.dart init
+dart run bin/injectable.dart init
 ```
 
 ## What's inside
@@ -52,10 +52,10 @@ Eleven gates, one per stage of writing software, from the first line of research
 10. **Push.** Turning a messy working tree into clean, atomic commits.
 11. **CI.** What a green check actually proves, and what it doesn't.
 
-None of it names a language, a company, or a tool. A `.claude/dpw/` layer lets a single project override one detail, a commit tag list, a review threshold, without touching the rules themselves.
+None of it names a language, a company, or a tool. A `.claude/injectable/` layer lets a single project override one detail, a commit tag list, a review threshold, without touching the rules themselves.
 
 ## Why it's public
 
-Read it, fork it, run it. Everything `dpw` touches in your project is `.claude/`, `.mcp.json`, `.gitignore` and its own `dpw-context` branch, never your code and never `main`, and everything it keeps for itself on the machine lives under `$HOME/.local/share/dpw/`.
+Read it, run it, check there's nothing shady in it. Everything `injectable` touches in your project is `.claude/`, `.mcp.json` and `.gitignore`, never your code and never `main`, and everything it keeps for itself on the machine lives under `$HOME/.local/share/injectable/`.
 
-Licensed under the Mozilla Public License 2.0.
+Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE): free to use, study, and modify for any noncommercial purpose, never as the base of a commercial product or service. The repository isn't open to outside contributions; reach out if you want to work on it.

@@ -39,14 +39,14 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-const String _serverName = 'dpw-decisions';
+const String _serverName = 'injectable-decisions';
 
-/// Declares dpw's MCP server in `.mcp.json` under [projectRoot].
+/// Declares injectable's MCP server in `.mcp.json` under [projectRoot].
 ///
-/// Only the `dpw-decisions` entry is touched: every other server a project
+/// Only the `injectable-decisions` entry is touched: every other server a project
 /// declared for itself, and every other top-level key in the file, is kept
 /// exactly as it was. A project's own `.mcp.json` is customization no sync
-/// should clobber, the same rule `.claude/dpw/` already follows.
+/// should clobber, the same rule `.claude/injectable/` already follows.
 void ensureMcpServerDeclared(Directory projectRoot) {
   final file = File(p.join(projectRoot.path, '.mcp.json'));
 
@@ -54,7 +54,7 @@ void ensureMcpServerDeclared(Directory projectRoot) {
   final servers = (config['mcpServers'] as Map<String, dynamic>?) ?? <String, dynamic>{};
 
   servers[_serverName] = <String, dynamic>{
-    'command': 'dpw',
+    'command': 'injectable',
     'args': ['mcp'],
   };
   config['mcpServers'] = servers;

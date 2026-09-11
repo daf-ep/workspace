@@ -44,7 +44,7 @@ void main() {
   late Directory rulesSource;
 
   setUp(() {
-    rulesSource = Directory.systemTemp.createTempSync('dafep_rules_source_');
+    rulesSource = Directory.systemTemp.createTempSync('injectable_rules_source_');
 
     final global = Directory(p.join(rulesSource.path, 'global'))..createSync();
     File(p.join(global.path, 'rules.md')).writeAsStringSync('root rule');
@@ -84,7 +84,7 @@ void main() {
   group('syncProjectFiles', () {
     late Directory destination;
 
-    setUp(() => destination = Directory.systemTemp.createTempSync('dafep_dest_'));
+    setUp(() => destination = Directory.systemTemp.createTempSync('injectable_dest_'));
     tearDown(() => destination.deleteSync(recursive: true));
 
     test('adds a project file the project never wrote', () {

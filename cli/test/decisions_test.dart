@@ -46,7 +46,7 @@ void main() {
   late String databasePath;
 
   setUp(() {
-    dir = Directory.systemTemp.createTempSync('dpw_decisions_');
+    dir = Directory.systemTemp.createTempSync('injectable_decisions_');
     databasePath = p.join(dir.path, 'nested', 'decisions.sqlite3');
   });
 

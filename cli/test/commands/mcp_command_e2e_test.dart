@@ -47,14 +47,14 @@ import '../support/fake_session.dart';
 
 void main() {
   test('a real client can call record_decision and it lands in sqlite', () async {
-    final project = Directory.systemTemp.createTempSync('dpw_mcp_e2e_project_');
-    final databaseDir = Directory.systemTemp.createTempSync('dpw_mcp_e2e_db_');
+    final project = Directory.systemTemp.createTempSync('injectable_mcp_e2e_project_');
+    final databaseDir = Directory.systemTemp.createTempSync('injectable_mcp_e2e_db_');
     addTearDown(() => project.deleteSync(recursive: true));
     addTearDown(() => databaseDir.deleteSync(recursive: true));
-    await initFakeGitRepo(project, remote: 'git@github.com:dpw-tests/mcp-e2e.git');
+    await initFakeGitRepo(project, remote: 'git@github.com:injectable-tests/mcp-e2e.git');
 
     final databasePath = p.join(databaseDir.path, 'decisions.sqlite3');
-    final binPath = p.join(Directory.current.path, 'bin', 'dpw.dart');
+    final binPath = p.join(Directory.current.path, 'bin', 'injectable.dart');
 
     final client = MCPClient(Implementation(name: 'mcp_command_e2e_test', version: '0.0.1'));
     final process = await Process.start(
@@ -62,9 +62,9 @@ void main() {
       ['run', binPath, 'mcp'],
       workingDirectory: project.path,
       environment: {
-        'DPW_DECISIONS_DATABASE': databasePath,
-        'DPW_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
-        'DPW_CREDENTIALS_PATH': writeFakeSession(databaseDir),
+        'INJECTABLE_DECISIONS_DATABASE': databasePath,
+        'INJECTABLE_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000',
+        'INJECTABLE_CREDENTIALS_PATH': writeFakeSession(databaseDir),
       },
     );
     addTearDown(process.kill);
@@ -99,7 +99,7 @@ void main() {
 
     await client.shutdown();
 
-    const projectId = 'github.com/dpw-tests/mcp-e2e';
+    const projectId = 'github.com/injectable-tests/mcp-e2e';
 
     final db = sqlite3.open(databasePath);
     addTearDown(db.close);

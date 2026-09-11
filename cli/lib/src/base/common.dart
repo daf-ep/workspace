@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 /// The name this tool is invoked by.
-const String kToolName = 'dpw';
+const String kToolName = 'injectable';
 
 /// A failure the user is meant to read, rather than a bug to report.
 ///

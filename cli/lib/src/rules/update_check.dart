@@ -44,7 +44,7 @@ import 'sync.dart';
 
 /// Checks the public corpus for updates when [interval] has passed since the
 /// last check, refreshing the shared store and [projectRoot]'s
-/// `.claude/dpw/` when it finds any. A store that has never been checked
+/// `.claude/injectable/` when it finds any. A store that has never been checked
 /// counts as checked at the epoch, so it is always due.
 ///
 /// Silent by design. Offline, or a check that is not due yet, are the
@@ -75,6 +75,6 @@ Future<bool> maybeCheckForRemoteUpdates({
   if (remote == null) return false;
 
   replaceGlobalContent(storeRoot: rulesStoreRoot, contents: remote.global);
-  syncProjectFiles(contents: remote.project, destination: Directory(p.join(projectRoot.path, '.claude', 'dpw')));
+  syncProjectFiles(contents: remote.project, destination: Directory(p.join(projectRoot.path, '.claude', 'injectable')));
   return true;
 }

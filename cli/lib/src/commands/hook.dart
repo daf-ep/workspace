@@ -36,7 +36,7 @@
 
 import 'dart:io';
 
-import '../runner/dpw_command.dart';
+import '../runner/injectable_command.dart';
 
 /// Records one Claude Code hook event, for later processing.
 ///
@@ -45,12 +45,12 @@ import '../runner/dpw_command.dart';
 /// fails: a hook Claude Code is waiting on has no use for an error from a
 /// capture mechanism that is not part of what the user asked it to do.
 ///
-/// Capture is being rebuilt against dpw's backend, sealed per-event
+/// Capture is being rebuilt against injectable's backend, sealed per-event
 /// encryption instead of a symmetric key shared by hand, no push into this
 /// project's own git history. Nothing is recorded anywhere until that
 /// lands: this drains its stdin payload, so Claude Code never blocks
 /// writing one, and otherwise does nothing with it.
-class HookCommand extends DpwCommand {
+class HookCommand extends InjectableCommand {
   @override
   final name = 'hook';
 
@@ -61,8 +61,8 @@ class HookCommand extends DpwCommand {
   bool get requiresAuthentication => false;
 
   @override
-  Future<DpwCommandResult> runCommand() async {
+  Future<InjectableCommandResult> runCommand() async {
     await stdin.drain<void>();
-    return const DpwCommandResult.success();
+    return const InjectableCommandResult.success();
   }
 }

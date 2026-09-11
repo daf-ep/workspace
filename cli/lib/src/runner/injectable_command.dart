@@ -50,26 +50,26 @@ enum ExitStatus {
 }
 
 /// What a command answers when it returns.
-class DpwCommandResult {
+class InjectableCommandResult {
   /// Ends the command on [exitStatus].
-  const DpwCommandResult(this.exitStatus);
+  const InjectableCommandResult(this.exitStatus);
 
   /// Ends the command on [ExitStatus.success].
-  const DpwCommandResult.success() : this(ExitStatus.success);
+  const InjectableCommandResult.success() : this(ExitStatus.success);
 
   /// Ends the command on [ExitStatus.fail].
-  const DpwCommandResult.fail() : this(ExitStatus.fail);
+  const InjectableCommandResult.fail() : this(ExitStatus.fail);
 
   /// How the command ended.
   final ExitStatus exitStatus;
 }
 
-/// The base every dpw command extends.
+/// The base every injectable command extends.
 ///
-/// A subclass writes [runCommand] and returns the [DpwCommandResult] it ended
+/// A subclass writes [runCommand] and returns the [InjectableCommandResult] it ended
 /// on, instead of a bare integer: what a command can answer grows here, once,
 /// rather than at every call site that reads an exit code.
-abstract class DpwCommand extends Command<int> {
+abstract class InjectableCommand extends Command<int> {
   /// Opens a context for this command and runs it.
   ///
   /// The child context is what lets a test override this command's logger, or
@@ -80,10 +80,10 @@ abstract class DpwCommand extends Command<int> {
       name: name,
       body: () async {
         if (requiresAuthentication && globals.storedSession == null) {
-          throwToolExit('dpw: not logged in. Run `dpw login` first.');
+          throwToolExit('injectable: not logged in. Run `injectable login` first.');
         }
 
-        final DpwCommandResult result = await runCommand();
+        final InjectableCommandResult result = await runCommand();
         await _checkForRemoteUpdates();
         return result.exitStatus == ExitStatus.success ? 0 : 1;
       },
@@ -106,7 +106,7 @@ abstract class DpwCommand extends Command<int> {
   /// A network failure already comes back as a plain "no update" from
   /// [maybeCheckForRemoteUpdates] itself. What lands here instead is a local
   /// problem, a corrupt database file or a permission error on
-  /// `.claude/dpw/`, and this command already did its own job by the time
+  /// `.claude/injectable/`, and this command already did its own job by the time
   /// that check runs: it should not fail because of it.
   Future<void> _checkForRemoteUpdates() async {
     try {
@@ -116,7 +116,7 @@ abstract class DpwCommand extends Command<int> {
         interval: globals.remoteUpdateCheckInterval,
       );
       if (updated) {
-        globals.logger.printStatus('dpw: refreshed the shared rules corpus from daf-ep/workspace');
+        globals.logger.printStatus('injectable: refreshed the shared rules corpus from daf-ep/injectable');
       }
     } catch (_) {
       return;
@@ -124,5 +124,5 @@ abstract class DpwCommand extends Command<int> {
   }
 
   /// What this command does, once it is reached.
-  Future<DpwCommandResult> runCommand();
+  Future<InjectableCommandResult> runCommand();
 }

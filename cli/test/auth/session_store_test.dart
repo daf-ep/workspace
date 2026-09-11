@@ -44,7 +44,7 @@ import 'package:test/test.dart';
 void main() {
   late Directory workspace;
 
-  setUp(() => workspace = Directory.systemTemp.createTempSync('dpw_session_store_'));
+  setUp(() => workspace = Directory.systemTemp.createTempSync('injectable_session_store_'));
   tearDown(() => workspace.deleteSync(recursive: true));
 
   test('reads back exactly what was saved', () {

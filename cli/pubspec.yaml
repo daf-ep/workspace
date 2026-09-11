@@ -1,5 +1,5 @@
 name: cli
-description: dpw, the command-line tool that syncs a project's rules and context for dafep.
+description: injectable, the command-line tool that syncs a project's rules and context.
 version: 1.0.0
 
 environment:

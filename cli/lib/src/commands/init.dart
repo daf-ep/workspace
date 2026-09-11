@@ -44,12 +44,12 @@ import '../globals.dart' as globals;
 import '../mcp_config.dart';
 import '../rules/store.dart';
 import '../rules/sync.dart';
-import '../runner/dpw_command.dart';
+import '../runner/injectable_command.dart';
 import '../settings_config.dart';
 
 /// Syncs the shared rules store from this checkout, ensures this project's
-/// customization stubs exist, and declares dpw's MCP server in `.mcp.json`.
-class InitCommand extends DpwCommand {
+/// customization stubs exist, and declares injectable's MCP server in `.mcp.json`.
+class InitCommand extends InjectableCommand {
   @override
   final name = 'init';
 
@@ -57,30 +57,30 @@ class InitCommand extends DpwCommand {
   final description = 'Sync the shared rules store from this checkout and declare the mcp server.';
 
   @override
-  Future<DpwCommandResult> runCommand() async {
+  Future<InjectableCommandResult> runCommand() async {
     final cwd = globals.projectRoot;
-    globals.logger.printStatus('dpw: this project is ${await globals.projectId}');
+    globals.logger.printStatus('injectable: this project is ${await globals.projectId}');
 
     final rulesSource = globals.rulesSource;
     if (rulesSource == null) {
-      throwToolExit('dpw: no rules directory found next to this tool');
+      throwToolExit('injectable: no rules directory found next to this tool');
     }
 
     final storeRoot = globals.rulesStoreRoot;
     replaceGlobalContent(storeRoot: storeRoot, contents: collectRuleContents(rulesSource));
-    globals.logger.printStatus('dpw: shared rules synced into ${storeRoot.path}');
+    globals.logger.printStatus('injectable: shared rules synced into ${storeRoot.path}');
 
-    final projectFilesDest = Directory(p.join(cwd.path, '.claude', 'dpw'));
+    final projectFilesDest = Directory(p.join(cwd.path, '.claude', 'injectable'));
     syncProjectFiles(contents: collectProjectContents(rulesSource), destination: projectFilesDest);
-    globals.logger.printStatus('dpw: customization stubs ensured in ${projectFilesDest.path}');
+    globals.logger.printStatus('injectable: customization stubs ensured in ${projectFilesDest.path}');
 
     ensureMcpServerDeclared(cwd);
-    globals.logger.printStatus('dpw: declared the mcp server in .mcp.json');
+    globals.logger.printStatus('injectable: declared the mcp server in .mcp.json');
 
     ensureGitignored(cwd, '.claude/context');
     ensureHooksDeclared(cwd);
-    globals.logger.printStatus('dpw: declared the context hooks in .claude/settings.json');
+    globals.logger.printStatus('injectable: declared the context hooks in .claude/settings.json');
 
-    return const DpwCommandResult.success();
+    return const InjectableCommandResult.success();
   }
 }

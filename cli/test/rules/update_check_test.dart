@@ -51,7 +51,7 @@ void main() {
   late Uri fixtureSource;
 
   setUp(() async {
-    directory = Directory.systemTemp.createTempSync('dpw_update_check_');
+    directory = Directory.systemTemp.createTempSync('injectable_update_check_');
     rulesStoreRoot = Directory(p.join(directory.path, 'rules_store'));
     projectRoot = Directory(p.join(directory.path, 'project'))..createSync();
 
@@ -122,8 +122,8 @@ void main() {
   });
 
   test('adds the fetched project content, without overwriting a file the project already wrote', () async {
-    final dpwDir = Directory(p.join(projectRoot.path, '.claude', 'dpw'))..createSync(recursive: true);
-    File(p.join(dpwDir.path, 'push.md')).writeAsStringSync('a project wrote this already');
+    final injectableDir = Directory(p.join(projectRoot.path, '.claude', 'injectable'))..createSync(recursive: true);
+    File(p.join(injectableDir.path, 'push.md')).writeAsStringSync('a project wrote this already');
 
     await maybeCheckForRemoteUpdates(
       rulesStoreRoot: rulesStoreRoot,
@@ -132,7 +132,7 @@ void main() {
       remoteSource: fixtureSource,
     );
 
-    expect(File(p.join(dpwDir.path, 'push.md')).readAsStringSync(), 'a project wrote this already');
+    expect(File(p.join(injectableDir.path, 'push.md')).readAsStringSync(), 'a project wrote this already');
   });
 
   test('records the check even when the remote could not be reached', () async {
@@ -140,7 +140,7 @@ void main() {
       rulesStoreRoot: rulesStoreRoot,
       projectRoot: projectRoot,
       interval: Duration.zero,
-      remoteSource: Uri.https('codeload.invalid.example.test', '/daf-ep/workspace/tar.gz/refs/heads/main'),
+      remoteSource: Uri.https('codeload.invalid.example.test', '/daf-ep/injectable/tar.gz/refs/heads/main'),
     );
 
     expect(updated, isFalse);
