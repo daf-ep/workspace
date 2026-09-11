@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 Fiber
 #
-# This Source Code Form is subject to the terms of the Mozilla Public License,
-# v. 2.0. If a copy of the MPL was not distributed with this file, You can
-# obtain one at https://mozilla.org/MPL/2.0/.
+# This software is licensed under the PolyForm Noncommercial License 1.0.0. A
+# copy of it is available at
+# https://polyformproject.org/licenses/noncommercial/1.0.0, and in the LICENSE
+# file at the root of this repository.
 #
 # What you may do:
-# - Use this software for any purpose, including commercially, and build and
-#   sell your own products on top of it.
-# - Change it, and create new works based on it.
-# - Distribute copies of it, with or without your changes.
-# - Combine it with files under any other licence, proprietary ones included,
-#   and licence that larger work on your own terms.
+# - Use, study, and modify this software for any noncommercial purpose,
+#   including personal use, research, education, and use by a charitable,
+#   public research, public safety, health, environmental, or government
+#   institution.
+# - Distribute copies of it, with or without your changes, for those same
+#   noncommercial purposes.
+#
+# What you may not do:
+# - Use this software, or a modified or combined version of it, in a
+#   commercial product or service, or for any other commercial purpose.
+# - Sublicense it, or transfer your licence to someone else.
 #
 # What you must do in return:
 # - Keep this notice on every file you received it on.
-# - Publish, under these same terms, the source of every file covered by them
-#   that you distribute, including the ones you changed, so that whoever
-#   receives your version can obtain that source.
-# - Leave Fiber out of it: the name "Fiber", its branding, its logos and its
-#   trademarks may not be used to endorse or promote what you build, and this
-#   licence grants no right to them.
 #
 # Disclaimer:
 # AS FAR AS THE LAW ALLOWS, THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY
@@ -42,7 +42,7 @@ EXCLUDED="${EXCLUDED:-.git .dart_tool}"
 SCAN_LINES=60
 
 COPYRIGHT="Copyright (C) 2026 Fiber"
-LICENSE_NAME="Mozilla Public License"
+LICENSE_NAME="PolyForm Noncommercial License"
 GENERATED="auto-generated|@generated|DO NOT EDIT|generated file - do not edit|DO NOT MODIFY BY HAND"
 
 find_arguments=()

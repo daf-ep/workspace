@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 Fiber
 #
-# This Source Code Form is subject to the terms of the Mozilla Public License,
-# v. 2.0. If a copy of the MPL was not distributed with this file, You can
-# obtain one at https://mozilla.org/MPL/2.0/.
+# This software is licensed under the PolyForm Noncommercial License 1.0.0. A
+# copy of it is available at
+# https://polyformproject.org/licenses/noncommercial/1.0.0, and in the LICENSE
+# file at the root of this repository.
 #
 # What you may do:
-# - Use this software for any purpose, including commercially, and build and
-#   sell your own products on top of it.
-# - Change it, and create new works based on it.
-# - Distribute copies of it, with or without your changes.
-# - Combine it with files under any other licence, proprietary ones included,
-#   and licence that larger work on your own terms.
+# - Use, study, and modify this software for any noncommercial purpose,
+#   including personal use, research, education, and use by a charitable,
+#   public research, public safety, health, environmental, or government
+#   institution.
+# - Distribute copies of it, with or without your changes, for those same
+#   noncommercial purposes.
+#
+# What you may not do:
+# - Use this software, or a modified or combined version of it, in a
+#   commercial product or service, or for any other commercial purpose.
+# - Sublicense it, or transfer your licence to someone else.
 #
 # What you must do in return:
 # - Keep this notice on every file you received it on.
-# - Publish, under these same terms, the source of every file covered by them
-#   that you distribute, including the ones you changed, so that whoever
-#   receives your version can obtain that source.
-# - Leave Fiber out of it: the name "Fiber", its branding, its logos and its
-#   trademarks may not be used to endorse or promote what you build, and this
-#   licence grants no right to them.
 #
 # Disclaimer:
 # AS FAR AS THE LAW ALLOWS, THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY
@@ -53,7 +53,19 @@ fi
 apply_one() {
   ruleset="$1"
   name=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['name'])" "$ruleset")
-  existing=$(gh api "repos/$REPOSITORY/rulesets" --jq ".[] | select(.name == \"$name\") | .id" 2>/dev/null || true)
+
+  if ! listing=$(gh api "repos/$REPOSITORY/rulesets" 2>&1); then
+    echo "Could not list existing rulesets on $REPOSITORY:" >&2
+    echo "$listing" >&2
+    return 1
+  fi
+  existing=$(printf '%s' "$listing" | python3 -c "
+import json, sys
+for r in json.load(sys.stdin):
+    if r['name'] == sys.argv[1]:
+        print(r['id'])
+        break
+" "$name")
 
   if [ -n "$existing" ]; then
     echo "Updating \"$name\" (id $existing) on $REPOSITORY"
@@ -65,7 +77,7 @@ apply_one() {
 }
 
 for ruleset in "$HERE"/*.json; do
-  apply_one "$ruleset"
+  apply_one "$ruleset" || exit 1
 done
 
 cat <<EOF
