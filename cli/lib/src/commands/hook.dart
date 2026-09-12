@@ -34,9 +34,24 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import '../capture.dart';
+import '../capture_seal.dart';
+import '../globals.dart' as globals;
 import '../runner/injectable_command.dart';
+
+/// The field each event's JSON payload carries the text to capture in, keyed
+/// by the direction it becomes once sealed. Claude Code names these fields
+/// itself; see the hooks reference for `UserPromptSubmit` and `Stop`.
+const _textFieldByDirection = {'input': 'user_input', 'output': 'last_assistant_message'};
+
+/// Which [_textFieldByDirection] direction a hook event name captures, or
+/// null for an event this command has nothing to record for (`SessionStart`
+/// today).
+const _directionByEvent = {'user-prompt-submit': 'input', 'stop': 'output'};
 
 /// Records one Claude Code hook event, for later processing.
 ///
@@ -45,11 +60,16 @@ import '../runner/injectable_command.dart';
 /// fails: a hook Claude Code is waiting on has no use for an error from a
 /// capture mechanism that is not part of what the user asked it to do.
 ///
-/// Capture is being rebuilt against injectable's backend, sealed per-event
-/// encryption instead of a symmetric key shared by hand, no push into this
-/// project's own git history. Nothing is recorded anywhere until that
-/// lands: this drains its stdin payload, so Claude Code never blocks
-/// writing one, and otherwise does nothing with it.
+/// `UserPromptSubmit` and `Stop` are the two directions of one exchange,
+/// Claude Code's own `prompt_id` pairing them back up on `dpw-backend`'s
+/// side: each is sealed and recorded the moment this command sees it,
+/// never held back waiting for the other half to arrive. `SessionStart`
+/// carries nothing this command captures yet.
+///
+/// Capture stays inert, draining stdin and recording nothing, until both
+/// [globals.storedSession] and [globals.capturePublicKey] are set: no
+/// account to scope a row under, or no key to seal it under, means nothing
+/// safe to write.
 class HookCommand extends InjectableCommand {
   @override
   final name = 'hook';
@@ -62,7 +82,44 @@ class HookCommand extends InjectableCommand {
 
   @override
   Future<InjectableCommandResult> runCommand() async {
-    await stdin.drain<void>();
+    final event = argResults?.rest.isEmpty ?? true ? null : argResults!.rest.first;
+    final rawPayload = await utf8.decoder.bind(stdin).join();
+
+    await _tryCapture(event: event, rawPayload: rawPayload);
+
     return const InjectableCommandResult.success();
+  }
+
+  /// Attempts to seal and record the exchange text [event] carries, never
+  /// letting a missing piece, a malformed payload, or an unreachable piece
+  /// of state surface as a failure: this command's contract is to never
+  /// fail, whatever the reason.
+  Future<void> _tryCapture({required String? event, required String rawPayload}) async {
+    try {
+      final direction = _directionByEvent[event];
+      if (direction == null) return;
+
+      final publicKey = globals.capturePublicKey;
+      final session = globals.storedSession;
+      if (publicKey == null || session == null) return;
+
+      final payload = jsonDecode(rawPayload) as Map<String, dynamic>;
+      final text = payload[_textFieldByDirection[direction]] as String?;
+      final exchangeId = payload['prompt_id'] as String?;
+      if (text == null || text.isEmpty || exchangeId == null) return;
+
+      final projectId = await globals.projectId;
+      final sealed = await seal(plaintext: Uint8List.fromList(utf8.encode(text)), recipientPublicKey: publicKey);
+
+      recordCapture(
+        databasePath: globals.capturesDatabasePath,
+        projectId: projectId,
+        accountHost: session.host.name,
+        accountLogin: session.login,
+        exchange: CapturedExchange(direction: direction, exchangeId: exchangeId, payload: sealed),
+      );
+    } catch (_) {
+      return;
+    }
   }
 }

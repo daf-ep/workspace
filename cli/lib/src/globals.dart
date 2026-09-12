@@ -36,7 +36,9 @@
 
 library;
 
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
@@ -132,6 +134,61 @@ String get decisionsDatabasePath =>
 
 String get _defaultDecisionsDatabasePath =>
     _injectableDataPath(envVariable: 'INJECTABLE_DECISIONS_DATABASE', filename: 'decisions.sqlite3');
+
+/// Where the captures database this run reads and writes lives.
+///
+/// Wrapped rather than looked up through a raw [String], so a test overriding
+/// it never risks colliding with an unrelated one a future override might
+/// register.
+class CapturesDatabase {
+  /// Wraps [path], the answer [capturesDatabasePath] should give for this run.
+  const CapturesDatabase(this.path);
+
+  /// The file this run's captures database lives at.
+  final String path;
+}
+
+/// The path to the local queue of captured exchanges not yet synced to
+/// `dpw-backend`.
+///
+/// One database for every project, at a fixed place under the user's home,
+/// on the same model as [decisionsDatabasePath]: a capture written here
+/// stays scoped to the project and account it carries, never to the
+/// directory it happened to run in.
+String get capturesDatabasePath =>
+    (context.get<CapturesDatabase>() ?? CapturesDatabase(_defaultCapturesDatabasePath)).path;
+
+String get _defaultCapturesDatabasePath =>
+    _injectableDataPath(envVariable: 'INJECTABLE_CAPTURES_DATABASE', filename: 'captures.sqlite3');
+
+/// Wraps the answer [capturePublicKey] should give for this run, so a test
+/// overriding it never risks colliding with an unrelated one a future
+/// override might register.
+class CapturePublicKey {
+  /// Wraps [bytes], the answer [capturePublicKey] should give for this run.
+  const CapturePublicKey(this.bytes);
+
+  /// The public key this run seals captures under, or null when there is
+  /// none to seal under yet.
+  final Uint8List? bytes;
+}
+
+/// The public key captures are sealed under before ever touching disk, or
+/// null when `dpw-backend` has not published one yet.
+///
+/// There is no compiled-in default: a key nobody can point back to a real
+/// `dpw-backend` deployment would look provisioned when it is not, and
+/// whoever holds its matching private half is still an open decision (see
+/// `philosophy.md`). Capture stays a no-op everywhere until
+/// `INJECTABLE_CAPTURE_PUBLIC_KEY` (base64) actually names one.
+Uint8List? get capturePublicKey =>
+    (context.get<CapturePublicKey>() ?? CapturePublicKey(_defaultCapturePublicKey)).bytes;
+
+Uint8List? get _defaultCapturePublicKey {
+  final encoded = Platform.environment['INJECTABLE_CAPTURE_PUBLIC_KEY'];
+  if (encoded == null || encoded.isEmpty) return null;
+  return base64Decode(encoded);
+}
 
 /// Where the shared rules store this run reads and writes lives.
 ///

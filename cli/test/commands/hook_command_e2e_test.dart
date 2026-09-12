@@ -36,11 +36,15 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:cli/src/capture.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../support/fake_git_repo.dart';
+import '../support/fake_session.dart';
 
 void main() {
   late Directory project;
@@ -52,6 +56,63 @@ void main() {
   });
 
   tearDown(() => project.deleteSync(recursive: true));
+
+  test('a real user-prompt-submit, then stop, seal and record both halves under the same exchange id', () async {
+    await initFakeGitRepo(project);
+    final credentialsPath = writeFakeSession(project);
+    final recipient = await X25519().newKeyPair();
+    final recipientPublicKey = await recipient.extractPublicKey();
+    final capturesDatabase = p.join(project.path, 'captures.sqlite3');
+    final env = {
+      'INJECTABLE_CREDENTIALS_PATH': credentialsPath,
+      'INJECTABLE_CAPTURES_DATABASE': capturesDatabase,
+      'INJECTABLE_CAPTURE_PUBLIC_KEY': base64Encode(recipientPublicKey.bytes),
+    };
+
+    await _runHook(
+      binPath,
+      project,
+      event: 'user-prompt-submit',
+      payload: '{"prompt_id":"prompt-1","user_input":"refactor the login module"}',
+      extraEnvironment: env,
+    );
+    await _runHook(
+      binPath,
+      project,
+      event: 'stop',
+      payload: '{"prompt_id":"prompt-1","last_assistant_message":"done, see the diff"}',
+      extraEnvironment: env,
+    );
+
+    final rows = pendingCaptures(databasePath: capturesDatabase);
+    expect(rows, hasLength(2));
+    expect(rows.map((row) => row.exchangeId).toSet(), {'prompt-1'});
+    expect(rows.map((row) => row.direction).toSet(), {'input', 'output'});
+
+    final openedInput = await _open(rows.firstWhere((row) => row.direction == 'input').payload, recipient);
+    final openedOutput = await _open(rows.firstWhere((row) => row.direction == 'output').payload, recipient);
+    expect(utf8.decode(openedInput), 'refactor the login module');
+    expect(utf8.decode(openedOutput), 'done, see the diff');
+  });
+
+  test('records nothing without a capture public key configured', () async {
+    await initFakeGitRepo(project);
+    final credentialsPath = writeFakeSession(project);
+    final capturesDatabase = p.join(project.path, 'captures.sqlite3');
+
+    await _runHook(
+      binPath,
+      project,
+      event: 'user-prompt-submit',
+      payload: '{"prompt_id":"prompt-1","user_input":"refactor the login module"}',
+      extraEnvironment: {
+        'INJECTABLE_CREDENTIALS_PATH': credentialsPath,
+        'INJECTABLE_CAPTURES_DATABASE': capturesDatabase,
+      },
+    );
+
+    expect(File(capturesDatabase).existsSync(), isFalse);
+  });
 
   test('succeeds without a stored session, since it never calls the backend', () async {
     await initFakeGitRepo(project);
@@ -87,12 +148,18 @@ void main() {
   });
 }
 
-Future<int> _runHook(String binPath, Directory project, {required String? event, required String payload}) async {
+Future<int> _runHook(
+  String binPath,
+  Directory project, {
+  required String? event,
+  required String payload,
+  Map<String, String> extraEnvironment = const {},
+}) async {
   final process = await Process.start(
     Platform.resolvedExecutable,
     ['run', binPath, 'hook', ?event],
     workingDirectory: project.path,
-    environment: {'INJECTABLE_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000'},
+    environment: {'INJECTABLE_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000', ...extraEnvironment},
   );
 
   process.stdin.write(payload);
@@ -102,4 +169,35 @@ Future<int> _runHook(String binPath, Directory project, {required String? event,
   final exitCode = await process.exitCode;
   if (exitCode != 0) fail('injectable hook exited $exitCode:\n$stderrOutput');
   return exitCode;
+}
+
+/// Reverses [seal] using primitives independent of it, exactly as
+/// `capture_seal_test.dart` does, so this test proves the row a real
+/// spawned `injectable hook` process wrote is genuinely decryptable by
+/// [recipient], not only that a row was written.
+Future<List<int>> _open(Uint8List blob, SimpleKeyPair recipient) async {
+  const ephemeralPublicKeyLength = 32;
+  const nonceLength = 12;
+  const macLength = 16;
+
+  final ephemeralPublicKeyBytes = blob.sublist(0, ephemeralPublicKeyLength);
+  final nonce = blob.sublist(ephemeralPublicKeyLength, ephemeralPublicKeyLength + nonceLength);
+  final mac = blob.sublist(ephemeralPublicKeyLength + nonceLength, ephemeralPublicKeyLength + nonceLength + macLength);
+  final cipherText = blob.sublist(ephemeralPublicKeyLength + nonceLength + macLength);
+
+  final keyExchange = X25519();
+  final sharedSecret = await keyExchange.sharedSecretKey(
+    keyPair: recipient,
+    remotePublicKey: SimplePublicKey(ephemeralPublicKeyBytes, type: KeyPairType.x25519),
+  );
+
+  final derivedKey = await Hkdf(
+    hmac: Hmac.sha256(),
+    outputLength: 32,
+  ).deriveKey(secretKey: sharedSecret, nonce: ephemeralPublicKeyBytes, info: utf8.encode('dpw-capture-seal-v1'));
+
+  return Chacha20.poly1305Aead().decrypt(
+    SecretBox(cipherText, nonce: nonce, mac: Mac(mac)),
+    secretKey: derivedKey,
+  );
 }

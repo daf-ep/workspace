@@ -8,6 +8,7 @@ environment:
 dependencies:
   archive: ^4.2.0
   args: ^2.7.0
+  cryptography: ^2.7.0
   dart_mcp: ^0.5.2
   fiber_shell: ^1.4.0
   http: ^1.6.0
