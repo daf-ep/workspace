@@ -34,6 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
 import '../auth/session_store.dart';
 import '../globals.dart' as globals;
 import '../runner/injectable_command.dart';
@@ -54,10 +58,32 @@ class LogoutCommand extends InjectableCommand {
 
   @override
   Future<InjectableCommandResult> runCommand() async {
-    final wasLoggedIn = globals.storedSession != null;
+    final session = globals.storedSession;
+    if (session?.refreshToken case final refreshToken?) {
+      await _tryRevoke(refreshToken);
+    }
     SessionStore(globals.credentialsPath).clear();
 
-    globals.logger.printStatus(wasLoggedIn ? 'injectable: logged out.' : 'injectable: was not logged in.');
+    globals.logger.printStatus(session != null ? 'injectable: logged out.' : 'injectable: was not logged in.');
     return const InjectableCommandResult.success();
+  }
+
+  /// Best-effort: the local session gets cleared either way, so a machine
+  /// offline at the moment of `injectable logout` is never stuck logged in.
+  /// A refresh token this could not revoke still expires on its own, see
+  /// `RefreshToken.lifetime` in `dpw-backend`.
+  Future<void> _tryRevoke(String refreshToken) async {
+    final httpClient = http.Client();
+    try {
+      await httpClient.post(
+        Uri.parse('${globals.backendBaseUrl}/v1/auth/logout'),
+        headers: const {'content-type': 'application/json'},
+        body: jsonEncode({'refresh_token': refreshToken}),
+      );
+    } catch (_) {
+      return;
+    } finally {
+      httpClient.close();
+    }
   }
 }

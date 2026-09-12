@@ -59,6 +59,27 @@ void main() {
     expect(read?.login, 'octocat');
   });
 
+  test('reads back a refresh token alongside the rest', () {
+    final store = SessionStore(p.join(workspace.path, 'credentials'));
+    const session = StoredSession(token: 'abc123', refreshToken: 'refresh-abc', host: GitHost.gitlab, login: 'octocat');
+
+    store.save(session);
+    final read = store.read();
+
+    expect(read?.refreshToken, 'refresh-abc');
+  });
+
+  test('reads a session with no refresh token as null, not as a missing session', () {
+    final store = SessionStore(p.join(workspace.path, 'credentials'));
+    const session = StoredSession(token: 'abc123', host: GitHost.gitlab, login: 'octocat');
+
+    store.save(session);
+    final read = store.read();
+
+    expect(read, isNotNull);
+    expect(read?.refreshToken, isNull);
+  });
+
   test('a session file is not left world-readable', () {
     if (Platform.isWindows) return;
 

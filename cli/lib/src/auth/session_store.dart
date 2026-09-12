@@ -42,11 +42,19 @@ import 'git_host.dart';
 /// The injectable session `injectable login` obtained, held on this machine until
 /// `injectable logout` or a fresh `injectable login` replaces it.
 class StoredSession {
-  /// Wraps an already-minted [token], identifying [login] on [host].
-  const StoredSession({required this.token, required this.host, required this.login});
+  /// Wraps an already-minted [token], identifying [login] on [host],
+  /// renewable through [refreshToken] once [token] is close to expiring.
+  const StoredSession({required this.token, this.refreshToken, required this.host, required this.login});
 
   /// The injectable session token every authenticated request carries.
   final String token;
+
+  /// The token traded for a fresh [token] once this one is close to
+  /// expiring, through `tryRefreshSession`, without running `injectable
+  /// login` again. Null for a session stored before this field existed:
+  /// such a session still works until [token] itself expires, it just
+  /// cannot renew itself past that point.
+  final String? refreshToken;
 
   /// Which host [login] was linked through.
   final GitHost host;
@@ -55,17 +63,23 @@ class StoredSession {
   final String login;
 
   /// This session, ready for [SessionStore] to write to disk.
-  Map<String, dynamic> toJson() => {'token': token, 'host': host.name, 'login': login};
+  Map<String, dynamic> toJson() => {
+    'token': token,
+    if (refreshToken != null) 'refreshToken': refreshToken,
+    'host': host.name,
+    'login': login,
+  };
 
-  /// The session [json] describes, or null when it is missing a field or
-  /// names a host [GitHost.parse] does not recognise: either way, this is
-  /// not a session `injectable` can use, and is treated the same as none at all.
+  /// The session [json] describes, or null when it is missing a required
+  /// field or names a host [GitHost.parse] does not recognise: either way,
+  /// this is not a session `injectable` can use, and is treated the same as
+  /// none at all.
   static StoredSession? fromJson(Map<String, dynamic> json) {
     final host = GitHost.parse(json['host'] as String?);
     final token = json['token'] as String?;
     final login = json['login'] as String?;
     if (host == null || token == null || login == null) return null;
-    return StoredSession(token: token, host: host, login: login);
+    return StoredSession(token: token, refreshToken: json['refreshToken'] as String?, host: host, login: login);
   }
 }
 

@@ -35,7 +35,10 @@
 // LICENSE file, the LICENSE file governs.
 
 import 'package:args/command_runner.dart';
+import 'package:http/http.dart' as http;
 
+import '../auth/session_refresh.dart';
+import '../auth/session_store.dart';
 import '../base/common.dart';
 import '../globals.dart' as globals;
 import '../rules/update_check.dart';
@@ -79,8 +82,14 @@ abstract class InjectableCommand extends Command<int> {
     return globals.context.run<int>(
       name: name,
       body: () async {
-        if (requiresAuthentication && globals.storedSession == null) {
-          throwToolExit('injectable: not logged in. Run `injectable login` first.');
+        if (requiresAuthentication) {
+          final session = globals.storedSession;
+          if (session == null) {
+            throwToolExit('injectable: not logged in. Run `injectable login` first.');
+          }
+          if (!await _ensureFreshSession(session)) {
+            throwToolExit('injectable: session expired and could not be renewed. Run `injectable login` again.');
+          }
         }
 
         final InjectableCommandResult result = await runCommand();
@@ -99,6 +108,27 @@ abstract class InjectableCommand extends Command<int> {
   /// fail regardless of the reason, so it decides for itself, inside its
   /// own guarded body, what a missing session means.
   bool get requiresAuthentication => true;
+
+  /// Renews [session] when its JWT is close to expiring, persisting the
+  /// result so the next command reads it fresh, and reports whether the
+  /// caller can proceed.
+  ///
+  /// Costs a network call only in the narrow window before [session]'s JWT
+  /// expires: everywhere else, [ensureFreshSession] answers from the token
+  /// alone.
+  Future<bool> _ensureFreshSession(StoredSession session) async {
+    final httpClient = http.Client();
+    try {
+      return await ensureFreshSession(
+        httpClient: httpClient,
+        backendBaseUrl: globals.backendBaseUrl,
+        session: session,
+        onRenewed: (renewed) => SessionStore(globals.credentialsPath).save(renewed),
+      );
+    } finally {
+      httpClient.close();
+    }
+  }
 
   /// Runs the best-effort remote update check, swallowing whatever it
   /// throws.

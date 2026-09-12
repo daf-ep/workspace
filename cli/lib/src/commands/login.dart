@@ -179,8 +179,9 @@ class LoginCommand extends InjectableCommand {
     }
 
     final token = body['token'] as String;
+    final refreshToken = body['refresh_token'] as String?;
     final user = body['user'] as Map<String, dynamic>;
-    return StoredSession(token: token, host: host, login: user['login'] as String);
+    return StoredSession(token: token, refreshToken: refreshToken, host: host, login: user['login'] as String);
   }
 
   /// Best-effort: [url] and its code are already printed, so a browser that
