@@ -122,7 +122,7 @@ void main() {
           'SessionStart': [
             {
               'hooks': [
-                {'type': 'command', 'command': 'injectable hook session-start', 'timeout': 5},
+                {'type': 'command', 'command': 'injectable bridge --start', 'timeout': 5},
               ],
             },
           ],
@@ -139,7 +139,7 @@ void main() {
     expect(groups, [
       {
         'hooks': [
-          {'type': 'command', 'command': 'injectable hook session-start', 'timeout': 30},
+          {'type': 'command', 'command': 'injectable bridge --start', 'timeout': 30},
         ],
       },
     ]);

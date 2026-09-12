@@ -12,7 +12,7 @@ read and write wherever `chmod` applies. `logout` forgets it again, and is a
 no-op when there was nothing to forget.
 
 Every other command refuses to run at all without a session stored, `injectable
-login` first is how it says so, except `hook`: that one is invoked by Claude
+login` first is how it says so, except `bridge`: that one is invoked by Claude
 Code itself rather than by whoever is or isn't logged in, and its own
 contract is to never fail regardless of the reason.
 
@@ -43,13 +43,11 @@ every project, at `$HOME/.local/share/injectable/decisions.sqlite3` unless
 `INJECTABLE_DECISIONS_DATABASE` says otherwise, tagged with the project's git-derived
 id.
 
-`hook` is wired into `SessionStart`, `UserPromptSubmit` and `Stop` in
-`.claude/settings.json` by `init`, and is not meant to be run by hand. It
-currently does nothing beyond draining its stdin payload: the session
-capture it used to write into a project-local encrypted database and push
-to an `injectable-context` branch has been retired, in favor of a design where a
-CLI-side account can never itself read what it captures. See "Capturing
-session context" below for where that stands.
+`bridge` is wired into `SessionStart`, `UserPromptSubmit` and `Stop` in
+`.claude/settings.json` by `init`, as `--start`, `--input` and `--end`
+respectively, and is not meant to be run by hand. `--input` and `--end` seal
+the exchange's text and queue it locally; `--start` does nothing yet. See
+"Capturing session context" below for where that stands.
 
 ## Logging in
 
@@ -79,11 +77,15 @@ sqlite database, under a symmetric key shared by hand between teammates
 `origin` with no history shared with any other branch. That key let anyone
 holding it, including the person captured, decrypt their own capture, which
 does not fit an account model where a session's owner should not need to be
-trusted with the ability to read it back. `injectable hook` is retired to draining
-its stdin payload until the replacement, sealing each event under a public
-key only `injectable`'s backend can decrypt and syncing it there over an
-authenticated connection rather than through this project's own git history,
-is built.
+trusted with the ability to read it back.
+
+The replacement seals each event under a public key only `injectable`'s
+backend can decrypt, `INJECTABLE_CAPTURE_PUBLIC_KEY` (base64) names it and
+capture stays a no-op until it is set, and queues the sealed bytes in a local
+database, `$HOME/.local/share/injectable/captures.sqlite3` unless
+`INJECTABLE_CAPTURES_DATABASE` says otherwise. Nothing reads that queue yet:
+syncing it to `injectable`'s backend over an authenticated connection, rather
+than through this project's own git history, is still to build.
 
 ## Running it from source
 

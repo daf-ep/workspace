@@ -37,7 +37,7 @@
 import 'dart:io';
 
 import 'package:cli/runner.dart' as runner;
-import 'package:cli/src/commands/hook.dart';
+import 'package:cli/src/commands/bridge.dart';
 import 'package:cli/src/commands/init.dart';
 import 'package:cli/src/commands/login.dart';
 import 'package:cli/src/commands/logout.dart';
@@ -47,7 +47,7 @@ import 'package:cli/src/runner/injectable_command.dart';
 Future<void> main(List<String> args) async {
   final int code = await runner.run(
     args,
-    () => <InjectableCommand>[LoginCommand(), LogoutCommand(), InitCommand(), McpCommand(), HookCommand()],
+    () => <InjectableCommand>[LoginCommand(), LogoutCommand(), InitCommand(), McpCommand(), BridgeCommand()],
   );
 
   if (code != 0) exit(code);

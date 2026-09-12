@@ -42,7 +42,7 @@ import 'package:path/path.dart' as p;
 
 /// Writes a [StoredSession] under [directory] and returns its path, ready
 /// to hand a spawned `injectable` process as `INJECTABLE_CREDENTIALS_PATH`: every command
-/// but `login`, `logout` and `hook` now refuses to run without one, and a
+/// but `login`, `logout` and `bridge` now refuses to run without one, and a
 /// test exercising those commands is not the place to also drive a real
 /// device login.
 String writeFakeSession(Directory directory) {

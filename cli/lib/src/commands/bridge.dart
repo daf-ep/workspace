@@ -43,36 +43,32 @@ import '../capture_seal.dart';
 import '../globals.dart' as globals;
 import '../runner/injectable_command.dart';
 
-/// The field each event's JSON payload carries the text to capture in, keyed
-/// by the direction it becomes once sealed. Claude Code names these fields
-/// itself; see the hooks reference for `UserPromptSubmit` and `Stop`.
+/// The field each direction's JSON payload carries the text to capture in.
+/// Claude Code names these fields itself; see the hooks reference for
+/// `UserPromptSubmit` and `Stop`.
 const _textFieldByDirection = {'input': 'user_input', 'output': 'last_assistant_message'};
-
-/// Which [_textFieldByDirection] direction a hook event name captures, or
-/// null for an event this command has nothing to record for (`SessionStart`
-/// today).
-const _directionByEvent = {'user-prompt-submit': 'input', 'stop': 'output'};
 
 /// Records one Claude Code hook event, for later processing.
 ///
-/// This is what `.claude/settings.json` calls for `SessionStart`,
-/// `UserPromptSubmit` and `Stop`, one event name per registration. Never
-/// fails: a hook Claude Code is waiting on has no use for an error from a
-/// capture mechanism that is not part of what the user asked it to do.
+/// `.claude/settings.json` calls this once per firing, with the flag naming
+/// which hook fired: `--start` for `SessionStart`, `--input` for
+/// `UserPromptSubmit`, `--end` for `Stop`. Never fails: a hook Claude Code is
+/// waiting on has no use for an error from a capture mechanism that is not
+/// part of what the user asked it to do.
 ///
-/// `UserPromptSubmit` and `Stop` are the two directions of one exchange,
-/// Claude Code's own `prompt_id` pairing them back up on `dpw-backend`'s
-/// side: each is sealed and recorded the moment this command sees it,
-/// never held back waiting for the other half to arrive. `SessionStart`
-/// carries nothing this command captures yet.
+/// `--input` and `--end` are the two directions of one exchange, Claude
+/// Code's own `prompt_id` pairing them back up on `dpw-backend`'s side: each
+/// is sealed and recorded the moment this command sees it, never held back
+/// waiting for the other half to arrive. `--start` carries nothing this
+/// command captures yet.
 ///
 /// Capture stays inert, draining stdin and recording nothing, until both
 /// [globals.storedSession] and [globals.capturePublicKey] are set: no
 /// account to scope a row under, or no key to seal it under, means nothing
 /// safe to write.
-class HookCommand extends InjectableCommand {
+class BridgeCommand extends InjectableCommand {
   @override
-  final name = 'hook';
+  final name = 'bridge';
 
   @override
   final description = "Records one Claude Code hook event's raw payload, for later processing.";
@@ -80,23 +76,42 @@ class HookCommand extends InjectableCommand {
   @override
   bool get requiresAuthentication => false;
 
+  /// Registers `--start`, `--input` and `--end`, one passed per call: Claude
+  /// Code invokes this command once per hook firing, naming which one summoned it.
+  BridgeCommand() {
+    argParser
+      ..addFlag('start', abbr: 's', negatable: false, help: 'The session just started (`SessionStart`).')
+      ..addFlag('input', abbr: 'i', negatable: false, help: 'The user just submitted a prompt (`UserPromptSubmit`).')
+      ..addFlag('end', abbr: 'e', negatable: false, help: 'Claude just finished responding (`Stop`).');
+  }
+
   @override
   Future<InjectableCommandResult> runCommand() async {
-    final event = argResults?.rest.isEmpty ?? true ? null : argResults!.rest.first;
+    final direction = _direction();
     final rawPayload = await utf8.decoder.bind(stdin).join();
 
-    await _tryCapture(event: event, rawPayload: rawPayload);
+    await _tryCapture(direction: direction, rawPayload: rawPayload);
 
     return const InjectableCommandResult.success();
   }
 
-  /// Attempts to seal and record the exchange text [event] carries, never
+  /// The [_textFieldByDirection] direction the one flag Claude Code passed
+  /// captures, or null for `--start`, or for none or several flags at once.
+  String? _direction() {
+    final start = argResults?.flag('start') ?? false;
+    final input = argResults?.flag('input') ?? false;
+    final end = argResults?.flag('end') ?? false;
+    if (input && !start && !end) return 'input';
+    if (end && !start && !input) return 'output';
+    return null;
+  }
+
+  /// Attempts to seal and record the exchange text [direction] carries, never
   /// letting a missing piece, a malformed payload, or an unreachable piece
   /// of state surface as a failure: this command's contract is to never
   /// fail, whatever the reason.
-  Future<void> _tryCapture({required String? event, required String rawPayload}) async {
+  Future<void> _tryCapture({required String? direction, required String rawPayload}) async {
     try {
-      final direction = _directionByEvent[event];
       if (direction == null) return;
 
       final publicKey = globals.capturePublicKey;

@@ -51,13 +51,13 @@ void main() {
   late String binPath;
 
   setUp(() {
-    project = Directory.systemTemp.createTempSync('injectable_hook_command_e2e_');
+    project = Directory.systemTemp.createTempSync('injectable_bridge_command_e2e_');
     binPath = p.join(Directory.current.path, 'bin', 'injectable.dart');
   });
 
   tearDown(() => project.deleteSync(recursive: true));
 
-  test('a real user-prompt-submit, then stop, seal and record both halves under the same exchange id', () async {
+  test('a real --input, then --end, seal and record both halves under the same exchange id', () async {
     await initFakeGitRepo(project);
     final credentialsPath = writeFakeSession(project);
     final recipient = await X25519().newKeyPair();
@@ -69,17 +69,17 @@ void main() {
       'INJECTABLE_CAPTURE_PUBLIC_KEY': base64Encode(recipientPublicKey.bytes),
     };
 
-    await _runHook(
+    await _runBridge(
       binPath,
       project,
-      event: 'user-prompt-submit',
+      flag: '--input',
       payload: '{"prompt_id":"prompt-1","user_input":"refactor the login module"}',
       extraEnvironment: env,
     );
-    await _runHook(
+    await _runBridge(
       binPath,
       project,
-      event: 'stop',
+      flag: '--end',
       payload: '{"prompt_id":"prompt-1","last_assistant_message":"done, see the diff"}',
       extraEnvironment: env,
     );
@@ -100,10 +100,10 @@ void main() {
     final credentialsPath = writeFakeSession(project);
     final capturesDatabase = p.join(project.path, 'captures.sqlite3');
 
-    await _runHook(
+    await _runBridge(
       binPath,
       project,
-      event: 'user-prompt-submit',
+      flag: '--input',
       payload: '{"prompt_id":"prompt-1","user_input":"refactor the login module"}',
       extraEnvironment: {
         'INJECTABLE_CREDENTIALS_PATH': credentialsPath,
@@ -117,22 +117,31 @@ void main() {
   test('succeeds without a stored session, since it never calls the backend', () async {
     await initFakeGitRepo(project);
 
-    final exitCode = await _runHook(binPath, project, event: 'stop', payload: '{"last_assistant_message":"done"}');
+    final exitCode = await _runBridge(binPath, project, flag: '--end', payload: '{"last_assistant_message":"done"}');
 
     expect(exitCode, 0);
   });
 
-  test('succeeds and writes nothing, called with no event name', () async {
+  test('succeeds and writes nothing, called with --start', () async {
     await initFakeGitRepo(project);
 
-    final exitCode = await _runHook(binPath, project, event: null, payload: '{}');
+    final exitCode = await _runBridge(binPath, project, flag: '--start', payload: '{}');
+
+    expect(exitCode, 0);
+    expect(File(p.join(project.path, '.claude', 'context')).existsSync(), isFalse);
+  });
+
+  test('succeeds and writes nothing, called with no flag', () async {
+    await initFakeGitRepo(project);
+
+    final exitCode = await _runBridge(binPath, project, flag: null, payload: '{}');
 
     expect(exitCode, 0);
     expect(File(p.join(project.path, '.claude', 'context')).existsSync(), isFalse);
   });
 
   test('succeeds and writes nothing outside a git repository either', () async {
-    final exitCode = await _runHook(binPath, project, event: 'stop', payload: '{}');
+    final exitCode = await _runBridge(binPath, project, flag: '--end', payload: '{}');
 
     expect(exitCode, 0);
     expect(File(p.join(project.path, '.claude', 'context')).existsSync(), isFalse);
@@ -142,22 +151,22 @@ void main() {
     await initFakeGitRepo(project);
     final largePayload = '{"transcript":"${'x' * (256 * 1024)}"}';
 
-    final exitCode = await _runHook(binPath, project, event: 'stop', payload: largePayload);
+    final exitCode = await _runBridge(binPath, project, flag: '--end', payload: largePayload);
 
     expect(exitCode, 0);
   });
 }
 
-Future<int> _runHook(
+Future<int> _runBridge(
   String binPath,
   Directory project, {
-  required String? event,
+  required String? flag,
   required String payload,
   Map<String, String> extraEnvironment = const {},
 }) async {
   final process = await Process.start(
     Platform.resolvedExecutable,
-    ['run', binPath, 'hook', ?event],
+    ['run', binPath, 'bridge', ?flag],
     workingDirectory: project.path,
     environment: {'INJECTABLE_UPDATE_CHECK_INTERVAL_SECONDS': '315360000000', ...extraEnvironment},
   );
@@ -167,13 +176,13 @@ Future<int> _runHook(
 
   final stderrOutput = await process.stderr.transform(utf8.decoder).join();
   final exitCode = await process.exitCode;
-  if (exitCode != 0) fail('injectable hook exited $exitCode:\n$stderrOutput');
+  if (exitCode != 0) fail('injectable bridge exited $exitCode:\n$stderrOutput');
   return exitCode;
 }
 
 /// Reverses [seal] using primitives independent of it, exactly as
 /// `capture_seal_test.dart` does, so this test proves the row a real
-/// spawned `injectable hook` process wrote is genuinely decryptable by
+/// spawned `injectable bridge` process wrote is genuinely decryptable by
 /// [recipient], not only that a row was written.
 Future<List<int>> _open(Uint8List blob, SimpleKeyPair recipient) async {
   const ephemeralPublicKeyLength = 32;

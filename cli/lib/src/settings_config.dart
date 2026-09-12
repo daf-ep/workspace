@@ -42,9 +42,9 @@ import 'package:path/path.dart' as p;
 /// The command injectable registers for each hook event it listens on, keyed by
 /// the event name Claude Code fires.
 const Map<String, String> hookCommands = {
-  'SessionStart': 'injectable hook session-start',
-  'UserPromptSubmit': 'injectable hook user-prompt-submit',
-  'Stop': 'injectable hook stop',
+  'SessionStart': 'injectable bridge --start',
+  'UserPromptSubmit': 'injectable bridge --input',
+  'Stop': 'injectable bridge --end',
 };
 
 /// Declares injectable's hooks in `.claude/settings.json` under [projectRoot].

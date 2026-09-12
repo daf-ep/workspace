@@ -94,7 +94,7 @@ abstract class InjectableCommand extends Command<int> {
   ///
   /// True for every command but `login` and `logout`, which have to work
   /// with no session yet to be the way one is obtained or cleared, and
-  /// `hook`: that command is invoked by Claude Code itself, never directly
+  /// `bridge`: that command is invoked by Claude Code itself, never directly
   /// by whoever is or isn't logged in, and its own contract is to never
   /// fail regardless of the reason, so it decides for itself, inside its
   /// own guarded body, what a missing session means.
